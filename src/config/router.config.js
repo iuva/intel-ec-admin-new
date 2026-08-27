@@ -70,6 +70,13 @@ export const asyncRouterMap = [
           }
         ]
       },
+      // 更新日志
+      {
+        path: '/history',
+        name: 'history',
+        component: () => import('@/views/history/List'),
+        meta: { title: 'menu.history', icon: 'table', permission: ['table'] }
+      },
       // list
       {
         path: '/list',
