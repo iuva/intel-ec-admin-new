@@ -19,21 +19,51 @@
           </template>
         </span>
       </s-table>
+
       <a-modal
         width="80vw"
         :visible="visible"
         @ok="visible = false"
         @cancel="visible = false"
       >
-        <CodeDiff
-          :old-string="oldJsonString"
-          :new-string="newJsonString"
-          output-format="side-by-side"
-          :context="10"
-          :highlight="true"
-          language="json"
-          maxHeight="70vh"
-        />
+        <div style="width: 100%; height: 75vh; overflow-y: auto;margin-top: 20px;">
+
+          <a-collapse v-model="activeKey">
+            <a-collapse-panel key="1" header="Board">
+              <CodeDiff
+                :old-string="jTos(oldData['board'])"
+                :new-string="jTos(newData['board'])"
+                output-format="side-by-side"
+                :context="10"
+                :highlight="true"
+                language="json"
+                maxHeight="70vh"
+              />
+            </a-collapse-panel>
+            <a-collapse-panel key="2" header="Memory">
+              <CodeDiff
+                :old-string="jTos(oldData['memory'])"
+                :new-string="jTos(newData['memory'])"
+                output-format="side-by-side"
+                :context="10"
+                :highlight="true"
+                language="json"
+                maxHeight="70vh"
+              />
+            </a-collapse-panel>
+            <a-collapse-panel key="3" header="HSIO">
+              <CodeDiff
+                :old-string="jTos(oldData['hsio'])"
+                :new-string="jTos(newData['hsio'])"
+                output-format="side-by-side"
+                :context="10"
+                :highlight="true"
+                language="json"
+                maxHeight="70vh"
+              />
+            </a-collapse-panel>
+          </a-collapse>
+        </div>
       </a-modal>
     </a-card>
   </page-header-wrapper>
@@ -169,6 +199,17 @@ export default {
     return {
       oldJsonString: JSON.stringify(json2, null, 2),
       newJsonString: JSON.stringify(json1, null, 2),
+      activeKey: ['1'],
+      oldData: {
+        board: json2,
+        memory: json2,
+        hsio: json2
+      },
+      newData: {
+        board: json1,
+        memory: json1,
+        hsio: json1
+      },
       visible: false,
       // create model
       columns: [
@@ -249,6 +290,9 @@ export default {
   methods: {
     handleEdit (record) {
       this.visible = true
+    },
+    jTos (jObj) {
+      return JSON.stringify(jObj || {}, null, 2)
     }
   }
 }
