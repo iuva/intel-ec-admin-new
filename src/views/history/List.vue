@@ -26,10 +26,20 @@
         @ok="visible = false"
         @cancel="visible = false"
       >
-        <div style="width: 100%; height: 75vh; overflow-y: auto;margin-top: 20px;">
+        <div style="width: 100%; height: 75vh; overflow-y: auto;margin-top: 20px;" v-show="modalConShow">
 
           <a-collapse v-model="activeKey">
-            <a-collapse-panel key="1" header="Board">
+            <a-collapse-panel key="1">
+              <template slot="header">
+                <div class="diff-panel-header">
+                  <span class="diff-panel-title">Board</span>
+                  <span class="diff-panel-stat">
+                    <a-badge v-if="diffStats.board.isChanged" :count="'+' + diffStats.board.addNum" :number-style="{ backgroundColor: '#52c41a', marginLeft: '8px' }" />
+                    <a-badge v-if="diffStats.board.isChanged" :count="'-' + diffStats.board.delNum" :number-style="{ backgroundColor: '#f5222d', marginLeft: '8px' }" />
+                    <a-tag v-if="!diffStats.board.isChanged" color="default">无变更</a-tag>
+                  </span>
+                </div>
+              </template>
               <CodeDiff
                 :old-string="jTos(oldData['board'])"
                 :new-string="jTos(newData['board'])"
@@ -37,10 +47,23 @@
                 :context="10"
                 :highlight="true"
                 language="json"
-                maxHeight="70vh"
+                maxHeight="68vh"
+                :hide-header="true"
+                :hide-stat="true"
+                @diff="(r) => onDiff('board', r)"
               />
             </a-collapse-panel>
-            <a-collapse-panel key="2" header="Memory">
+            <a-collapse-panel key="2">
+              <template slot="header">
+                <div class="diff-panel-header">
+                  <span class="diff-panel-title">Memory</span>
+                  <span class="diff-panel-stat">
+                    <a-badge v-if="diffStats.memory.isChanged" :count="'+' + diffStats.memory.addNum" :number-style="{ backgroundColor: '#52c41a', marginLeft: '8px' }" />
+                    <a-badge v-if="diffStats.memory.isChanged" :count="'-' + diffStats.memory.delNum" :number-style="{ backgroundColor: '#f5222d', marginLeft: '8px' }" />
+                    <a-tag v-if="!diffStats.memory.isChanged" color="default">无变更</a-tag>
+                  </span>
+                </div>
+              </template>
               <CodeDiff
                 :old-string="jTos(oldData['memory'])"
                 :new-string="jTos(newData['memory'])"
@@ -48,10 +71,23 @@
                 :context="10"
                 :highlight="true"
                 language="json"
-                maxHeight="70vh"
+                maxHeight="68vh"
+                :hide-header="true"
+                :hide-stat="true"
+                @diff="(r) => onDiff('memory', r)"
               />
             </a-collapse-panel>
-            <a-collapse-panel key="3" header="HSIO">
+            <a-collapse-panel key="3">
+              <template slot="header">
+                <div class="diff-panel-header">
+                  <span class="diff-panel-title">HSIO</span>
+                  <span class="diff-panel-stat">
+                    <a-badge v-if="diffStats.hsio.isChanged" :count="'+' + diffStats.hsio.addNum" :number-style="{ backgroundColor: '#52c41a', marginLeft: '8px' }" />
+                    <a-badge v-if="diffStats.hsio.isChanged" :count="'-' + diffStats.hsio.delNum" :number-style="{ backgroundColor: '#f5222d', marginLeft: '8px' }" />
+                    <a-tag v-if="!diffStats.hsio.isChanged" color="default">无变更</a-tag>
+                  </span>
+                </div>
+              </template>
               <CodeDiff
                 :old-string="jTos(oldData['hsio'])"
                 :new-string="jTos(newData['hsio'])"
@@ -59,7 +95,10 @@
                 :context="10"
                 :highlight="true"
                 language="json"
-                maxHeight="70vh"
+                maxHeight="68vh"
+                :hide-header="true"
+                :hide-stat="true"
+                @diff="(r) => onDiff('hsio', r)"
               />
             </a-collapse-panel>
           </a-collapse>
@@ -200,6 +239,11 @@ export default {
       oldJsonString: JSON.stringify(json2, null, 2),
       newJsonString: JSON.stringify(json1, null, 2),
       activeKey: ['1'],
+      diffStats: {
+        board: { isChanged: false, addNum: 0, delNum: 0 },
+        memory: { isChanged: false, addNum: 0, delNum: 0 },
+        hsio: { isChanged: false, addNum: 0, delNum: 0 }
+      },
       oldData: {
         board: json2,
         memory: json2,
@@ -211,6 +255,7 @@ export default {
         hsio: json1
       },
       visible: false,
+      modalConShow: false,
       // create model
       columns: [
         {
@@ -290,10 +335,57 @@ export default {
   methods: {
     handleEdit (record) {
       this.visible = true
+      this.activeKey = ['1', '2', '3']
+      this.modalConShow = false
+      this.$nextTick(() => {
+        setTimeout(() => {
+          this.activeKey = []
+        }, 50)
+        setTimeout(() => {
+          this.modalConShow = true
+        }, 100)
+      })
     },
     jTos (jObj) {
       return JSON.stringify(jObj || {}, null, 2)
+    },
+    onDiff (key, diffResult) {
+      const { isChanged, addNum, delNum } = diffResult.stat
+      this.$set(this.diffStats, key, { isChanged, addNum, delNum })
     }
   }
 }
 </script>
+
+<style lang="less" scoped>
+.diff-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding-right: 8px;
+}
+
+.diff-panel-title {
+  font-weight: 500;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.diff-panel-stat {
+  display: inline-flex;
+  align-items: center;
+}
+/deep/ .ant-collapse{
+  .ant-collapse-content{
+    .ant-collapse-content-box{
+      padding: 0;
+      .code-diff-view{
+        margin-top: 0;
+        margin-bottom: 0;
+        border: none;
+      }
+    }
+  }
+}
+</style>
