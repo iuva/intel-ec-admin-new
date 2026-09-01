@@ -15,7 +15,7 @@
 
         <span slot="action" slot-scope="text, record">
           <template>
-            <a @click="handleEdit(record)">查看</a>
+            <a @click="handleEdit(record)">View</a>
           </template>
         </span>
       </s-table>
@@ -36,7 +36,7 @@
                   <span class="diff-panel-stat">
                     <a-badge v-if="diffStats.board.isChanged" :count="'+' + diffStats.board.addNum" :number-style="{ backgroundColor: '#52c41a', marginLeft: '8px' }" />
                     <a-badge v-if="diffStats.board.isChanged" :count="'-' + diffStats.board.delNum" :number-style="{ backgroundColor: '#f5222d', marginLeft: '8px' }" />
-                    <a-tag v-if="!diffStats.board.isChanged" color="default">无变更</a-tag>
+                    <a-tag v-if="!diffStats.board.isChanged" color="default">No Change</a-tag>
                   </span>
                 </div>
               </template>
@@ -60,7 +60,7 @@
                   <span class="diff-panel-stat">
                     <a-badge v-if="diffStats.memory.isChanged" :count="'+' + diffStats.memory.addNum" :number-style="{ backgroundColor: '#52c41a', marginLeft: '8px' }" />
                     <a-badge v-if="diffStats.memory.isChanged" :count="'-' + diffStats.memory.delNum" :number-style="{ backgroundColor: '#f5222d', marginLeft: '8px' }" />
-                    <a-tag v-if="!diffStats.memory.isChanged" color="default">无变更</a-tag>
+                    <a-tag v-if="!diffStats.memory.isChanged" color="default">No Change</a-tag>
                   </span>
                 </div>
               </template>
@@ -84,7 +84,7 @@
                   <span class="diff-panel-stat">
                     <a-badge v-if="diffStats.hsio.isChanged" :count="'+' + diffStats.hsio.addNum" :number-style="{ backgroundColor: '#52c41a', marginLeft: '8px' }" />
                     <a-badge v-if="diffStats.hsio.isChanged" :count="'-' + diffStats.hsio.delNum" :number-style="{ backgroundColor: '#f5222d', marginLeft: '8px' }" />
-                    <a-tag v-if="!diffStats.hsio.isChanged" color="default">无变更</a-tag>
+                    <a-tag v-if="!diffStats.hsio.isChanged" color="default">No Change</a-tag>
                   </span>
                 </div>
               </template>
@@ -115,15 +115,15 @@ import { CodeDiff } from 'v-code-diff'
 const statusMap = {
   1: {
     status: 'processing',
-    text: '待审核'
+    text: 'Pending Review'
   },
   2: {
     status: 'success',
-    text: '审核通过'
+    text: 'Approved'
   },
   3: {
     status: 'error',
-    text: '驳回'
+    text: 'Rejected'
   }
 }
 
@@ -259,16 +259,16 @@ export default {
       // create model
       columns: [
         {
-          title: '修改人',
+          title: 'Modified By',
           dataIndex: 'ename'
         },
-        { title: '修改时间', dataIndex: 'etime' },
-        { title: '审核人', dataIndex: 'aname' },
-        { title: '审核时间', dataIndex: 'atime' },
-        { title: '审核状态',
+        { title: 'Modified Time', dataIndex: 'etime' },
+        { title: 'Reviewer', dataIndex: 'aname' },
+        { title: 'Review Time', dataIndex: 'atime' },
+        { title: 'Review Status',
           dataIndex: 'status',
           scopedSlots: { customRender: 'status' } },
-        { title: '操作',
+        { title: 'Action',
           dataIndex: 'action',
           width: 200,
           scopedSlots: { customRender: 'action' } }
@@ -283,37 +283,37 @@ export default {
             totalPage: 1,
             data: [
               {
-                ename: '张三',
+                ename: 'Tom',
                 etime: '2025-08-24 10:11:00',
-                aname: '李四',
+                aname: 'David',
                 atime: '2025-08-24 11:11:00',
                 status: 1
               },
               {
-                ename: '张三',
+                ename: 'Tom',
                 etime: '2025-08-24 10:11:00',
-                aname: '李四',
+                aname: 'David',
                 atime: '2025-08-24 11:11:00',
                 status: 2
               },
               {
-                ename: '张三',
+                ename: 'Tom',
                 etime: '2025-08-24 10:11:00',
-                aname: '李四',
+                aname: 'David',
                 atime: '2025-08-24 11:11:00',
                 status: 1
               },
               {
-                ename: '张三',
+                ename: 'Tom',
                 etime: '2025-08-24 10:11:00',
-                aname: '李四',
+                aname: 'David',
                 atime: '2025-08-24 11:11:00',
                 status: 3
               },
               {
-                ename: '张三',
+                ename: 'Tom',
                 etime: '2025-08-24 10:11:00',
-                aname: '李四',
+                aname: 'David',
                 atime: '2025-08-24 11:11:00',
                 status: 1
               }

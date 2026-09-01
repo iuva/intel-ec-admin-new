@@ -1,6 +1,7 @@
 export default {
     'menu.welcome': '欢迎',
     'menu.home': '主页',
+    'menu.home-page': 'Home Page',
     'menu.dashboard': '仪表盘',
     'menu.dashboard.analysis': '分析页',
     'menu.dashboard.monitor': '监控页',
@@ -12,6 +13,10 @@ export default {
     'menu.form.step-form.confirm': '分步表单（确认转账信息）',
     'menu.form.step-form.result': '分步表单（完成）',
     'menu.form.advanced-form': '高级表单',
+    'menu.host-management': 'Available HOST',
+    'menu.pending-host': 'Pending HOST',
+    'menu.account-management': 'Account Management',
+    'menu.ota-management': 'OTA Management',
     'menu.list': '列表页',
     'menu.list.table-list': '查询表格',
     'menu.list.basic-list': '标准列表',

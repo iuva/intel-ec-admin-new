@@ -3,26 +3,26 @@
     <a-list-item>
       <a-list-item-meta>
         <template v-slot:title>
-          <a>风格配色</a>
+          <a>Theme Color</a>
         </template>
         <template v-slot:description>
           <span>
-            整体风格配色设置
+            Global theme color settings
           </span>
         </template>
       </a-list-item-meta>
       <template v-slot:actions>
-        <a-switch checkedChildren="暗色" unCheckedChildren="白色" :defaultChecked="navTheme === 'dark' && true || false" @change="onChange" />
+        <a-switch checkedChildren="Dark" unCheckedChildren="Light" :defaultChecked="navTheme === 'dark' && true || false" @change="onChange" />
       </template>
     </a-list-item>
     <a-list-item>
       <a-list-item-meta>
         <template v-slot:title>
-          <a>主题色</a>
+          <a>Primary Color</a>
         </template>
         <template v-slot:description>
           <span>
-            页面风格配色： <a>{{ colorFilter(primaryColor) }}</a>
+            Page theme color: <a>{{ colorFilter(primaryColor) }}</a>
           </span>
         </template>
       </a-list-item-meta>
@@ -35,8 +35,8 @@ import { baseMixin } from '@/store/app-mixin'
 import { NAV_THEME, TOGGLE_NAV_THEME } from '@/store/mutation-types'
 
 const themeMap = {
-  'dark': '暗色',
-  'light': '白色'
+  'dark': 'Dark',
+  'light': 'Light'
 }
 
 export default {

@@ -1,0 +1,786 @@
+{
+  "revision": "0.1.0",
+  "mainboard": {
+    "plt_meta_data": {
+      "platform": "BHS_GNR",
+      "label_plt_cfg": "unknown"
+    },
+    "board": {
+      "board_meta_data": {
+        "board_name": "JohnsonCity1SPCRP",
+        "uxi_topology": "1S",
+        "host_name": "SHMRCGNR16",
+        "host_ip": "10.239.168.184"
+      },
+      "baseboard": [
+        {
+          "board_id": "0x40",
+          "rework_version": "unknown",
+          "board_ip": "unknown",
+          "bmc_ip": "10.239.168.49",
+          "fru_id": "unknown"
+        }
+      ],
+      "lsio": {
+        "usb_disc_installed": true,
+        "network_installed": true,
+        "nvme_installed": false,
+        "keyboard_installed": true,
+        "mouse_installed": true
+      },
+      "peripheral": {
+        "itp_installed": true,
+        "usb_dbc_installed": false,
+        "controlbox_installed": true,
+        "flash_programmer_installed": false,
+        "display_installed": true,
+        "jumpers": [
+          {
+            "id": "J9B3",
+            "name": "rtc_passwd_clr",
+            "status": false
+          },
+          {
+            "id": "J9B1",
+            "name": "mfg_enable",
+            "status": false
+          },
+          {
+            "id": "JT6A3",
+            "name": "hpm_fru_wp",
+            "status": false
+          }
+        ]
+      }
+    },
+    "misc": {
+      "installed_os": [],
+      "bmc_version": "bhs-25.08-0-g7cd02e-6fddef2",
+      "bmc_ip": "10.239.168.49",
+      "cpld_version": "0.40"
+    }
+  },
+  "hsio": [
+    {
+      "hsio": {
+        "hsio_meta_data": {
+          "cxl_por": "unknown",
+          "cxl_installed_num": 0,
+          "cxl_installed_tpye": null,
+          "cxl_mixed_device_type": false,
+          "cxl_switch": "unknown"
+        },
+        "slot": []
+      }
+    }
+  ],
+  "memory": [
+    {
+      "memory": {
+        "memory_meta_data": {
+          "dimm_type": "RDIMM",
+          "platform_type": "GNRSP",
+          "memory_por_id": {
+            "value": "GNRSP_8.1"
+          },
+          "total_memory_size": {
+            "value": 256
+          },
+          "mixed_dimm": {
+            "is_mixed": true,
+            "common_info": "",
+            "special_info": "dram_capacity: 16GB, vendor_dimm: Samsung, data_width: 10x4"
+          }
+        },
+        "channel": [
+          {
+            "channel_id": 0,
+            "socket_id": 0,
+            "slot0_plugged": true,
+            "slot0_dimm": {
+              "dimm_arrangement": "Single-Die Package",
+              "rank_count": null,
+              "data_width": "10x4",
+              "dram_density": "16Gb",
+              "dram_capacity": "16GB",
+              "vendor_dimm": "Samsung",
+              "vendor_dram": "Micron",
+              "vendor_rcd": "Montage",
+              "vendor_pmic": "Others",
+              "frequency": 5600
+            },
+            "slot1_plugged": false,
+            "slot1_dimm": null
+          },
+          {
+            "channel_id": 1,
+            "socket_id": 0,
+            "slot0_plugged": true,
+            "slot0_dimm": {
+              "dimm_arrangement": "Single-Die Package",
+              "rank_count": null,
+              "data_width": "10x4",
+              "dram_density": null,
+              "dram_capacity": "16GB",
+              "vendor_dimm": "Samsung",
+              "vendor_dram": null,
+              "vendor_rcd": null,
+              "vendor_pmic": "Others",
+              "frequency": 5600
+            },
+            "slot1_plugged": false,
+            "slot1_dimm": null
+          },
+          {
+            "channel_id": 2,
+            "socket_id": 0,
+            "slot0_plugged": true,
+            "slot0_dimm": {
+              "dimm_arrangement": "Single-Die Package",
+              "rank_count": null,
+              "data_width": "10x4",
+              "dram_density": "16Gb",
+              "dram_capacity": "16GB",
+              "vendor_dimm": "Samsung",
+              "vendor_dram": "Micron",
+              "vendor_rcd": "Montage",
+              "vendor_pmic": "Others",
+              "frequency": 5600
+            },
+            "slot1_plugged": false,
+            "slot1_dimm": null
+          },
+          {
+            "channel_id": 3,
+            "socket_id": 0,
+            "slot0_plugged": true,
+            "slot0_dimm": {
+              "dimm_arrangement": "Single-Die Package",
+              "rank_count": null,
+              "data_width": "10x4",
+              "dram_density": null,
+              "dram_capacity": "16GB",
+              "vendor_dimm": "Samsung",
+              "vendor_dram": null,
+              "vendor_rcd": null,
+              "vendor_pmic": "Others",
+              "frequency": 5600
+            },
+            "slot1_plugged": false,
+            "slot1_dimm": null
+          },
+          {
+            "channel_id": 4,
+            "socket_id": 0,
+            "slot0_plugged": true,
+            "slot0_dimm": {
+              "dimm_arrangement": "Single-Die Package",
+              "rank_count": null,
+              "data_width": "10x4",
+              "dram_density": "16Gb",
+              "dram_capacity": "16GB",
+              "vendor_dimm": "Samsung",
+              "vendor_dram": "Micron",
+              "vendor_rcd": "Montage",
+              "vendor_pmic": "Others",
+              "frequency": 5600
+            },
+            "slot1_plugged": false,
+            "slot1_dimm": null
+          },
+          {
+            "channel_id": 5,
+            "socket_id": 0,
+            "slot0_plugged": true,
+            "slot0_dimm": {
+              "dimm_arrangement": "Single-Die Package",
+              "rank_count": null,
+              "data_width": "10x4",
+              "dram_density": null,
+              "dram_capacity": "16GB",
+              "vendor_dimm": "Samsung",
+              "vendor_dram": null,
+              "vendor_rcd": null,
+              "vendor_pmic": "Others",
+              "frequency": 5600
+            },
+            "slot1_plugged": false,
+            "slot1_dimm": null
+          },
+          {
+            "channel_id": 6,
+            "socket_id": 0,
+            "slot0_plugged": true,
+            "slot0_dimm": {
+              "dimm_arrangement": "Single-Die Package",
+              "rank_count": null,
+              "data_width": "10x4",
+              "dram_density": "16Gb",
+              "dram_capacity": "16GB",
+              "vendor_dimm": "Samsung",
+              "vendor_dram": "Micron",
+              "vendor_rcd": "Montage",
+              "vendor_pmic": "Others",
+              "frequency": 5600
+            },
+            "slot1_plugged": false,
+            "slot1_dimm": null
+          },
+          {
+            "channel_id": 7,
+            "socket_id": 0,
+            "slot0_plugged": true,
+            "slot0_dimm": {
+              "dimm_arrangement": "Single-Die Package",
+              "rank_count": null,
+              "data_width": "10x4",
+              "dram_density": null,
+              "dram_capacity": "16GB",
+              "vendor_dimm": "Samsung",
+              "vendor_dram": null,
+              "vendor_rcd": null,
+              "vendor_pmic": "Others",
+              "frequency": 5600
+            },
+            "slot1_plugged": false,
+            "slot1_dimm": null
+          },
+          {
+            "channel_id": 0,
+            "socket_id": 1,
+            "slot0_plugged": true,
+            "slot0_dimm": {
+              "dimm_arrangement": "Single-Die Package",
+              "rank_count": null,
+              "data_width": "10x4",
+              "dram_density": "16Gb",
+              "dram_capacity": "16GB",
+              "vendor_dimm": "Samsung",
+              "vendor_dram": "Micron",
+              "vendor_rcd": "Montage",
+              "vendor_pmic": "Others",
+              "frequency": 5600
+            },
+            "slot1_plugged": false,
+            "slot1_dimm": null
+          },
+          {
+            "channel_id": 1,
+            "socket_id": 1,
+            "slot0_plugged": true,
+            "slot0_dimm": {
+              "dimm_arrangement": "Single-Die Package",
+              "rank_count": null,
+              "data_width": "10x4",
+              "dram_density": null,
+              "dram_capacity": "16GB",
+              "vendor_dimm": "Samsung",
+              "vendor_dram": null,
+              "vendor_rcd": null,
+              "vendor_pmic": "Others",
+              "frequency": 5600
+            },
+            "slot1_plugged": false,
+            "slot1_dimm": null
+          },
+          {
+            "channel_id": 2,
+            "socket_id": 1,
+            "slot0_plugged": true,
+            "slot0_dimm": {
+              "dimm_arrangement": "Single-Die Package",
+              "rank_count": null,
+              "data_width": "10x4",
+              "dram_density": "16Gb",
+              "dram_capacity": "16GB",
+              "vendor_dimm": "Samsung",
+              "vendor_dram": "Micron",
+              "vendor_rcd": "Montage",
+              "vendor_pmic": "Others",
+              "frequency": 5600
+            },
+            "slot1_plugged": false,
+            "slot1_dimm": null
+          },
+          {
+            "channel_id": 3,
+            "socket_id": 1,
+            "slot0_plugged": true,
+            "slot0_dimm": {
+              "dimm_arrangement": "Single-Die Package",
+              "rank_count": null,
+              "data_width": "10x4",
+              "dram_density": null,
+              "dram_capacity": "16GB",
+              "vendor_dimm": "Samsung",
+              "vendor_dram": null,
+              "vendor_rcd": null,
+              "vendor_pmic": "Others",
+              "frequency": 5600
+            },
+            "slot1_plugged": false,
+            "slot1_dimm": null
+          },
+          {
+            "channel_id": 4,
+            "socket_id": 1,
+            "slot0_plugged": true,
+            "slot0_dimm": {
+              "dimm_arrangement": "Single-Die Package",
+              "rank_count": null,
+              "data_width": "10x4",
+              "dram_density": "16Gb",
+              "dram_capacity": "16GB",
+              "vendor_dimm": "Samsung",
+              "vendor_dram": "Micron",
+              "vendor_rcd": "Montage",
+              "vendor_pmic": "Others",
+              "frequency": 5600
+            },
+            "slot1_plugged": false,
+            "slot1_dimm": null
+          },
+          {
+            "channel_id": 5,
+            "socket_id": 1,
+            "slot0_plugged": true,
+            "slot0_dimm": {
+              "dimm_arrangement": "Single-Die Package",
+              "rank_count": null,
+              "data_width": "10x4",
+              "dram_density": null,
+              "dram_capacity": "16GB",
+              "vendor_dimm": "Samsung",
+              "vendor_dram": null,
+              "vendor_rcd": null,
+              "vendor_pmic": "Others",
+              "frequency": 5600
+            },
+            "slot1_plugged": false,
+            "slot1_dimm": null
+          },
+          {
+            "channel_id": 6,
+            "socket_id": 1,
+            "slot0_plugged": true,
+            "slot0_dimm": {
+              "dimm_arrangement": "Single-Die Package",
+              "rank_count": null,
+              "data_width": "10x4",
+              "dram_density": "16Gb",
+              "dram_capacity": "16GB",
+              "vendor_dimm": "Samsung",
+              "vendor_dram": "Micron",
+              "vendor_rcd": "Montage",
+              "vendor_pmic": "Others",
+              "frequency": 5600
+            },
+            "slot1_plugged": false,
+            "slot1_dimm": null
+          },
+          {
+            "channel_id": 7,
+            "socket_id": 1,
+            "slot0_plugged": true,
+            "slot0_dimm": {
+              "dimm_arrangement": "Single-Die Package",
+              "rank_count": null,
+              "data_width": "10x4",
+              "dram_density": null,
+              "dram_capacity": "16GB",
+              "vendor_dimm": "Samsung",
+              "vendor_dram": null,
+              "vendor_rcd": null,
+              "vendor_pmic": "Others",
+              "frequency": 5600
+            },
+            "slot1_plugged": false,
+            "slot1_dimm": null
+          }
+        ]
+      }
+    }
+  ],
+  "security": {
+    "security": {
+      "Tpm": [],
+      "CoinBattery": []
+    }
+  },
+  "soc": [
+    {
+      "soc": {
+        "meta_data": {
+          "soc_name": {
+            "value": null
+          },
+          "soc_id": 0,
+          "cpu_id": "0x000a06d1",
+          "chop_type": "3",
+          "stepping": "A0",
+          "qdf": "Q62S"
+        },
+        "soc_feature": {
+          "sgx": true,
+          "mktme": true,
+          "tdx": true,
+          "vab": false,
+          "cpu_attestation": true,
+          "mini_dpe": false,
+          "sstpp": true,
+          "ras_level": "Advanced",
+          "memory_channel": 4,
+          "ddr5_freq": 6400,
+          "mrdimm_freq": 8000
+        },
+        "comp_die": [
+          {
+            "comp_die_id": 0,
+            "comp_die_type": "Pcore",
+            "comp_die_present": true,
+            "core_count": 8
+          },
+          {
+            "comp_die_id": 1,
+            "comp_die_type": "Pcore",
+            "comp_die_present": true,
+            "core_count": 8
+          }
+        ],
+        "io_die": [
+          {
+            "io_die_id": 0,
+            "io_die_type": "IO",
+            "io_die_present": true,
+            "stacks_config": [
+              {
+                "stack_id": 0,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "1",
+                "peer_uxi_port_id": "1"
+              },
+              {
+                "stack_id": 1,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "1",
+                "peer_uxi_port_id": "0"
+              },
+              {
+                "stack_id": 2,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "1",
+                "peer_uxi_port_id": "2"
+              },
+              {
+                "stack_id": 3,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "1",
+                "peer_uxi_port_id": "3"
+              },
+              {
+                "stack_id": 4,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "Unknown",
+                "peer_uxi_port_id": "Unknown"
+              }
+            ]
+          },
+          {
+            "io_die_id": 1,
+            "io_die_type": "IO",
+            "io_die_present": true,
+            "stacks_config": [
+              {
+                "stack_id": 0,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "1",
+                "peer_uxi_port_id": "1"
+              },
+              {
+                "stack_id": 1,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "1",
+                "peer_uxi_port_id": "0"
+              },
+              {
+                "stack_id": 2,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "1",
+                "peer_uxi_port_id": "2"
+              },
+              {
+                "stack_id": 3,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "1",
+                "peer_uxi_port_id": "3"
+              },
+              {
+                "stack_id": 4,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "Unknown",
+                "peer_uxi_port_id": "Unknown"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "soc": {
+        "meta_data": {
+          "soc_name": {
+            "value": null
+          },
+          "soc_id": 1,
+          "cpu_id": "0x000a06d1",
+          "chop_type": "3",
+          "stepping": "A0",
+          "qdf": "Q62S"
+        },
+        "soc_feature": {
+          "sgx": true,
+          "mktme": true,
+          "tdx": true,
+          "vab": false,
+          "cpu_attestation": true,
+          "mini_dpe": false,
+          "sstpp": true,
+          "ras_level": "Advanced",
+          "memory_channel": 4,
+          "ddr5_freq": 6400,
+          "mrdimm_freq": 8000
+        },
+        "comp_die": [
+          {
+            "comp_die_id": 0,
+            "comp_die_type": "Pcore",
+            "comp_die_present": true,
+            "core_count": 8
+          },
+          {
+            "comp_die_id": 1,
+            "comp_die_type": "Pcore",
+            "comp_die_present": true,
+            "core_count": 8
+          }
+        ],
+        "io_die": [
+          {
+            "io_die_id": 0,
+            "io_die_type": "IO",
+            "io_die_present": true,
+            "stacks_config": [
+              {
+                "stack_id": 0,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "0",
+                "peer_uxi_port_id": "1"
+              },
+              {
+                "stack_id": 1,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "0",
+                "peer_uxi_port_id": "0"
+              },
+              {
+                "stack_id": 2,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "0",
+                "peer_uxi_port_id": "2"
+              },
+              {
+                "stack_id": 3,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "0",
+                "peer_uxi_port_id": "3"
+              },
+              {
+                "stack_id": 4,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "Unknown",
+                "peer_uxi_port_id": "Unknown"
+              }
+            ]
+          },
+          {
+            "io_die_id": 1,
+            "io_die_type": "IO",
+            "io_die_present": true,
+            "stacks_config": [
+              {
+                "stack_id": 0,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "0",
+                "peer_uxi_port_id": "1"
+              },
+              {
+                "stack_id": 1,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "0",
+                "peer_uxi_port_id": "0"
+              },
+              {
+                "stack_id": 2,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "0",
+                "peer_uxi_port_id": "2"
+              },
+              {
+                "stack_id": 3,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "0",
+                "peer_uxi_port_id": "3"
+              },
+              {
+                "stack_id": 4,
+                "stack_type": null,
+                "stack_present": true,
+                "stack_uxi_cap": true,
+                "stack_cxl_cap": true,
+                "stack_pcie_cap": true,
+                "stack_acc_cap": false,
+                "stack_infra_cap": false,
+                "stack_mixed_cap": false,
+                "peer_soc_id": "Unknown",
+                "peer_uxi_port_id": "Unknown"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

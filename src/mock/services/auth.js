@@ -1,22 +1,25 @@
 import Mock from 'mockjs2'
+import md5 from 'md5'
 import { builder, getBody } from '../util'
+import { mockAccounts, setSessionUser, clearSessionUser } from './account'
 
-const username = ['admin', 'super']
-// 强硬要求 ant.design 相同密码
-// '21232f297a57a5a743894a0e4a801fc3',
-const password = ['8914de686ab28dc22f30d3d8e107ff6c', '21232f297a57a5a743894a0e4a801fc3'] // admin, ant.design
-
+// 登录校验改为按「账号管理」共享账号列表：用哪个账号登录，即以该账号角色控制各页面权限
+// （Login.vue 提交前对密码做 md5，这里同样以 md5 比对）
 const login = (options) => {
   const body = getBody(options)
   console.log('mock: body', body)
-  if (!username.includes(body.username) || !password.includes(body.password)) {
+  const account = mockAccounts.find(item => item.username === body.username)
+  if (!account || md5(account.password) !== body.password) {
     return builder({ isLogin: true }, '账户或密码错误', 401)
   }
 
+  // 记录会话用户，供 getInfo 返回对应角色
+  setSessionUser(account.username)
+
   return builder({
-    'id': Mock.mock('@guid'),
-    'name': Mock.mock('@name'),
-    'username': 'admin',
+    'id': account.id,
+    'name': account.username,
+    'username': account.username,
     'password': '',
     'avatar': 'https://gw.alipayobjects.com/zos/rmsportal/jZUIxmJycoymBprLOUbT.png',
     'status': 1,
@@ -26,13 +29,14 @@ const login = (options) => {
     'creatorId': 'admin',
     'createTime': 1497160610259,
     'deleted': 0,
-    'roleId': 'admin',
+    'roleId': account.role,
     'lang': 'zh-CN',
-    'token': '4291d7da9005377ec9aec4a71ea837f'
+    'token': 'mock-token-' + account.username
   }, '', 200, { 'Custom-Header': Mock.mock('@guid') })
 }
 
 const logout = () => {
+  clearSessionUser()
   return builder({}, '[测试接口] 注销成功')
 }
 

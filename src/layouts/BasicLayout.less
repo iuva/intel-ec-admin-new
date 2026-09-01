@@ -1,5 +1,35 @@
 @import '~ant-design-vue/es/style/themes/default.less';
 
+// 侧边栏头部：logo 与标题横向排列，白色文字，与菜单图标左对齐
+// pro-layout 给 #logo 注入了内联 padding-left: 32px，需 !important 覆盖
+.ant-pro-sider-menu-logo {
+  padding-left: 24px !important;
+  text-align: left;
+}
+
+.sider-header-title {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  height: 64px;
+  overflow: hidden;
+
+  img {
+    height: 32px;
+    margin-right: 12px;
+  }
+
+  h1 {
+    margin: 0;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 32px;
+    white-space: nowrap;
+  }
+}
+
 .ant-pro-global-header-index-right {
   margin-right: 8px;
 

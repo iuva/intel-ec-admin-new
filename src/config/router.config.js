@@ -1,6 +1,5 @@
 // eslint-disable-next-line
 import { UserLayout, BasicLayout, BlankLayout } from '@/layouts'
-import { bxAnaalyse } from '@/core/icons'
 
 const RouteView = {
   name: 'RouteView',
@@ -12,209 +11,108 @@ export const asyncRouterMap = [
     path: '/',
     name: 'index',
     component: BasicLayout,
-    meta: { title: 'menu.home' },
-    redirect: '/dashboard/workplace',
+    meta: { title: 'menu.home-page' },
+    redirect: '/home',
     children: [
-      // dashboard
+      // Home（首页）：导航栏第一位
       {
-        path: '/dashboard',
-        name: 'dashboard',
-        redirect: '/dashboard/workplace',
+        path: '/home',
+        name: 'Home',
+        component: () => import('@/views/home/Home'),
+        meta: { title: 'menu.home', keepAlive: true, icon: 'home', permission: ['home'] }
+      },
+      // Available HOST
+      // 用 RouteView 包装一层（与 /dashboard 同模式）：详情页 matched 达到 3 层，
+      // pro-layout 才能在 meta.hidden 时高亮父级菜单 /available-host
+      {
+        path: '/available-host',
+        name: 'AvailableHost',
+        redirect: '/available-host/list',
         component: RouteView,
-        meta: { title: 'menu.dashboard', keepAlive: true, icon: bxAnaalyse, permission: ['dashboard'] },
+        // 路由级属性：BaseMenu 按单个菜单项渲染，不显示子菜单
+        hideChildrenInMenu: true,
+        meta: { title: 'menu.host-management', keepAlive: true, icon: 'desktop', permission: ['table'] },
         children: [
           {
-            path: '/dashboard/analysis/:pageNo([1-9]\\d*)?',
-            name: 'Analysis',
-            component: () => import('@/views/dashboard/Analysis'),
-            meta: { title: 'menu.dashboard.analysis', keepAlive: false, permission: ['dashboard'] }
+            path: 'list',
+            name: 'AvailableHostList',
+            component: () => import('@/views/host/AvailableHostList'),
+            meta: { title: 'menu.host-management', keepAlive: true, permission: ['table'] }
           },
-          // 外部链接
-          // {
-          //   path: 'https://www.baidu.com/',
-          //   name: 'Monitor',
-          //   meta: { title: 'menu.dashboard.monitor', target: '_blank' }
-          // },
+          // HOST 详情页：从列表点击 View 进入，不在菜单显示
           {
-            path: '/dashboard/workplace',
-            name: 'Workplace',
-            component: () => import('@/views/dashboard/Workplace'),
-            meta: { title: 'menu.dashboard.workplace', keepAlive: true, permission: ['dashboard'] }
+            path: 'detail',
+            name: 'HostDetail',
+            component: () => import('@/views/host/HostDetail'),
+            // hidden 为路由级属性（非 meta.hidden），pro-layout 侧边栏按 item.hidden 过滤
+            hidden: true,
+            meta: { title: 'HOST Detail', hidden: true, permission: ['table'] }
           }
         ]
       },
-      // forms
+      // Pending HOST
+      // 用 RouteView 包装一层（与 /available-host 同模式）
       {
-        path: '/form',
-        redirect: '/form/base-form',
+        path: '/pending-host',
+        name: 'PendingHost',
+        redirect: '/pending-host/list',
         component: RouteView,
-        meta: { title: 'menu.form', icon: 'form', permission: ['form'] },
+        // 路由级属性：BaseMenu 按单个菜单项渲染，不显示子菜单
+        hideChildrenInMenu: true,
+        meta: { title: 'menu.pending-host', keepAlive: true, icon: 'audit', permission: ['table'] },
         children: [
           {
-            path: '/form/base-form',
-            name: 'BaseForm',
-            component: () => import('@/views/form/basicForm'),
-            meta: { title: 'menu.form.basic-form', keepAlive: true, permission: ['form'] }
+            path: 'list',
+            name: 'PendingHostList',
+            component: () => import('@/views/host/PendingHostList'),
+            meta: { title: 'menu.pending-host', keepAlive: true, permission: ['table'] }
           },
+          // Pending HOST 详情页：从列表点击 View 进入，不在菜单显示
           {
-            path: '/form/step-form',
-            name: 'StepForm',
-            component: () => import('@/views/form/stepForm/StepForm'),
-            meta: { title: 'menu.form.step-form', keepAlive: true, permission: ['form'] }
-          },
-          {
-            path: '/form/advanced-form',
-            name: 'AdvanceForm',
-            component: () => import('@/views/form/advancedForm/AdvancedForm'),
-            meta: { title: 'menu.form.advanced-form', keepAlive: true, permission: ['form'] }
+            path: 'detail',
+            name: 'PendingHostDetail',
+            component: () => import('@/views/host/PendingHostDetail'),
+            // hidden 为路由级属性（非 meta.hidden），pro-layout 侧边栏按 item.hidden 过滤
+            hidden: true,
+            meta: { title: 'Pending HOST Detail', hidden: true, permission: ['table'] }
           }
         ]
       },
-      // 更新日志
+      // OTA Management
       {
-        path: '/history',
-        name: 'history',
-        component: () => import('@/views/history/List'),
-        meta: { title: 'menu.history', icon: 'table', permission: ['table'] }
+        path: '/ota-management',
+        name: 'OtaManagement',
+        component: () => import('@/views/ota/OtaManagement'),
+        meta: { title: 'menu.ota-management', keepAlive: true, icon: 'cloud-upload', permission: ['table'] }
       },
-      // list
+      // Account Management（账号管理）
+      // 用 RouteView 包装一层（与 /available-host 同模式）：详情页 matched 达到 3 层，
+      // pro-layout 才能在 meta.hidden 时高亮父级菜单 /account-management
+      // 权限标识 account-management 仅 Admin 角色拥有，菜单入口只对 Admin 显示
       {
-        path: '/list',
-        name: 'list',
+        path: '/account-management',
+        name: 'AccountManagement',
+        redirect: '/account-management/list',
         component: RouteView,
-        redirect: '/list/table-list',
-        meta: { title: 'menu.list', icon: 'table', permission: ['table'] },
+        // 路由级属性：BaseMenu 按单个菜单项渲染，不显示子菜单
+        hideChildrenInMenu: true,
+        meta: { title: 'menu.account-management', keepAlive: true, icon: 'user', permission: ['account-management'] },
         children: [
           {
-            path: '/list/table-list/:pageNo([1-9]\\d*)?',
-            name: 'TableListWrapper',
-            hideChildrenInMenu: true, // 强制显示 MenuItem 而不是 SubMenu
-            component: () => import('@/views/list/TableList'),
-            meta: { title: 'menu.list.table-list', keepAlive: true, permission: ['table'] }
-          },
-          {
-            path: '/list/basic-list',
-            name: 'BasicList',
-            component: () => import('@/views/list/BasicList'),
-            meta: { title: 'menu.list.basic-list', keepAlive: true, permission: ['table'] }
-          },
-          {
-            path: '/list/card',
-            name: 'CardList',
-            component: () => import('@/views/list/CardList'),
-            meta: { title: 'menu.list.card-list', keepAlive: true, permission: ['table'] }
-          },
-          {
-            path: '/list/search',
-            name: 'SearchList',
-            component: () => import('@/views/list/search/SearchLayout'),
-            redirect: '/list/search/article',
-            meta: { title: 'menu.list.search-list', keepAlive: true, permission: ['table'] },
-            children: [
-              {
-                path: '/list/search/article',
-                name: 'SearchArticles',
-                component: () => import('../views/list/search/Article'),
-                meta: { title: 'menu.list.search-list.articles', permission: ['table'] }
-              },
-              {
-                path: '/list/search/project',
-                name: 'SearchProjects',
-                component: () => import('../views/list/search/Projects'),
-                meta: { title: 'menu.list.search-list.projects', permission: ['table'] }
-              },
-              {
-                path: '/list/search/application',
-                name: 'SearchApplications',
-                component: () => import('../views/list/search/Applications'),
-                meta: { title: 'menu.list.search-list.applications', permission: ['table'] }
-              }
-            ]
+            path: 'list',
+            name: 'AccountManagementList',
+            component: () => import('@/views/account-management/AccountList'),
+            meta: { title: 'menu.account-management', keepAlive: true, permission: ['account-management'] }
           }
         ]
       },
-
-      // profile
-      {
-        path: '/profile',
-        name: 'profile',
-        component: RouteView,
-        redirect: '/profile/basic',
-        meta: { title: 'menu.profile', icon: 'profile', permission: ['profile'] },
-        children: [
-          {
-            path: '/profile/basic',
-            name: 'ProfileBasic',
-            component: () => import('@/views/profile/basic'),
-            meta: { title: 'menu.profile.basic', permission: ['profile'] }
-          },
-          {
-            path: '/profile/advanced',
-            name: 'ProfileAdvanced',
-            component: () => import('@/views/profile/advanced/Advanced'),
-            meta: { title: 'menu.profile.advanced', permission: ['profile'] }
-          }
-        ]
-      },
-
-      // result
-      {
-        path: '/result',
-        name: 'result',
-        component: RouteView,
-        redirect: '/result/success',
-        meta: { title: 'menu.result', icon: 'check-circle-o', permission: ['result'] },
-        children: [
-          {
-            path: '/result/success',
-            name: 'ResultSuccess',
-            component: () => import(/* webpackChunkName: "result" */ '@/views/result/Success'),
-            meta: { title: 'menu.result.success', keepAlive: false, hiddenHeaderContent: true, permission: ['result'] }
-          },
-          {
-            path: '/result/fail',
-            name: 'ResultFail',
-            component: () => import(/* webpackChunkName: "result" */ '@/views/result/Error'),
-            meta: { title: 'menu.result.fail', keepAlive: false, hiddenHeaderContent: true, permission: ['result'] }
-          }
-        ]
-      },
-
-      // Exception
-      {
-        path: '/exception',
-        name: 'exception',
-        component: RouteView,
-        redirect: '/exception/403',
-        meta: { title: 'menu.exception', icon: 'warning', permission: ['exception'] },
-        children: [
-          {
-            path: '/exception/403',
-            name: 'Exception403',
-            component: () => import(/* webpackChunkName: "fail" */ '@/views/exception/403'),
-            meta: { title: 'menu.exception.not-permission', permission: ['exception'] }
-          },
-          {
-            path: '/exception/404',
-            name: 'Exception404',
-            component: () => import(/* webpackChunkName: "fail" */ '@/views/exception/404'),
-            meta: { title: 'menu.exception.not-find', permission: ['exception'] }
-          },
-          {
-            path: '/exception/500',
-            name: 'Exception500',
-            component: () => import(/* webpackChunkName: "fail" */ '@/views/exception/500'),
-            meta: { title: 'menu.exception.server-error', permission: ['exception'] }
-          }
-        ]
-      },
-
-      // account
+      // 个人中心 / 个人设置：仅头像下拉菜单使用，不在侧边导航显示
       {
         path: '/account',
         component: RouteView,
         redirect: '/account/center',
         name: 'account',
+        hidden: true,
         meta: { title: 'menu.account', icon: 'user', keepAlive: true, permission: ['user'] },
         children: [
           {

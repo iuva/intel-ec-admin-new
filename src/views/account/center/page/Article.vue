@@ -17,15 +17,15 @@
         <template slot="description">
           <span>
             <a-tag>Ant Design</a-tag>
-            <a-tag>设计语言</a-tag>
-            <a-tag>蚂蚁金服</a-tag>
+            <a-tag>Design Language</a-tag>
+            <a-tag>Ant Group</a-tag>
           </span>
         </template>
       </a-list-item-meta>
       <article-list-content :description="item.description" :owner="item.owner" :avatar="item.avatar" :href="item.href" :updateAt="item.updatedAt" />
     </a-list-item>
     <div slot="footer" v-if="data.length > 0" style="text-align: center; margin-top: 16px;">
-      <a-button @click="loadMore" :loading="loadingMore">加载更多</a-button>
+      <a-button @click="loadMore" :loading="loadingMore">Load More</a-button>
     </div>
   </a-list>
 </template>

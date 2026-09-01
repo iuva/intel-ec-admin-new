@@ -1,7 +1,7 @@
 <template>
 
   <a-modal
-    title="修改头像"
+    title="Change Avatar"
     :visible="visible"
     :maskClosable="false"
     :confirmLoading="confirmLoading"
@@ -32,7 +32,7 @@
     <a-row>
       <a-col :lg="2" :md="2">
         <a-upload name="file" :beforeUpload="beforeUpload" :showUploadList="false">
-          <a-button icon="upload">选择图片</a-button>
+          <a-button icon="upload">Select Image</a-button>
         </a-upload>
       </a-col>
       <a-col :lg="{span: 1, offset: 2}" :md="2">
@@ -48,7 +48,7 @@
         <a-button icon="redo" @click="rotateRight"/>
       </a-col>
       <a-col :lg="{span: 2, offset: 6}" :md="2">
-        <a-button type="primary" @click="finish('blob')">保存</a-button>
+        <a-button type="primary" @click="finish('blob')">Save</a-button>
       </a-col>
     </a-row>
   </a-modal>
@@ -134,7 +134,7 @@ export default {
               //   _this.$message.success('上传成功')
               //   this.visible = false
               // }
-              _this.$message.success('上传成功')
+              _this.$message.success('Upload succeeded')
               _this.$emit('ok', response.url)
               _this.visible = false
             })
@@ -153,7 +153,7 @@ export default {
       setTimeout(() => {
         vm.confirmLoading = false
         vm.close()
-        vm.$message.success('上传头像成功')
+        vm.$message.success('Avatar uploaded successfully')
       }, 2000)
     },
 

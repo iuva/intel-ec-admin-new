@@ -10,26 +10,13 @@
           <div class="header">
             <a href="/">
               <img src="~@/assets/logo.svg" class="logo" alt="logo">
-              <span class="title">Ant Design</span>
+              <span class="title">xCopilot Background</span>
             </a>
-          </div>
-          <div class="desc">
-            {{ $t('layouts.userLayout.title') }}
           </div>
         </div>
 
         <router-view />
 
-        <div class="footer">
-          <div class="links">
-            <a href="_self">帮助</a>
-            <a href="_self">隐私</a>
-            <a href="_self">条款</a>
-          </div>
-          <div class="copyright">
-            Copyright &copy; 2018 vueComponent
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -69,10 +56,11 @@ export default {
 
   .container {
     width: 100%;
-    min-height: 100%;
+    height: 100%;
     background: #f0f2f5 url(~@/assets/background.svg) no-repeat 50%;
     background-size: 100%;
-    //padding: 50px 0 84px;
+    display: flex;
+    flex-direction: column;
     position: relative;
 
     .user-layout-lang {
@@ -94,10 +82,16 @@ export default {
     }
 
     .user-layout-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
       padding: 32px 0 24px;
 
       .top {
         text-align: center;
+        margin-bottom: 40px;
 
         .header {
           height: 44px;
@@ -141,31 +135,6 @@ export default {
         min-width: 260px;
         width: 368px;
         margin: 0 auto;
-      }
-
-      .footer {
-        // position: absolute;
-        width: 100%;
-        bottom: 0;
-        padding: 0 16px;
-        margin: 48px 0 24px;
-        text-align: center;
-
-        .links {
-          margin-bottom: 8px;
-          font-size: 14px;
-          a {
-            color: rgba(0, 0, 0, 0.45);
-            transition: all 0.3s;
-            &:not(:last-child) {
-              margin-right: 40px;
-            }
-          }
-        }
-        .copyright {
-          color: rgba(0, 0, 0, 0.45);
-          font-size: 14px;
-        }
       }
     }
 

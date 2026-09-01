@@ -10,13 +10,13 @@
             <a-avatar class="card-avatar" slot="avatar" :src="item.avatar" size="small"/>
             <div class="meta-cardInfo" slot="description">
               <div>
-                <p>活跃用户</p>
+                <p>Active Users</p>
                 <p>
-                  <span>{{ item.activeUser }}<span>万</span></span>
+                  <span>{{ item.activeUser }}<span>0k</span></span>
                 </p>
               </div>
               <div>
-                <p>新增用户</p>
+                <p>New Users</p>
                 <p>{{ item.newUser | NumberFormat }}</p>
               </div>
             </div>
