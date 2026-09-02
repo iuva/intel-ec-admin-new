@@ -133,7 +133,7 @@ import { CodeDiff } from 'v-code-diff'
 import { roleMixin, PASSWORD_MASK } from '@/utils/roles'
 import { countDiffStats } from './jsonDiff'
 // 本次更新的硬件信息示例数据：直接使用项目根目录 HW.json（后续接入后端接口时替换为接口返回值）
-import hwLatest from '../../../../HW.json'
+import hwLatest from './hw.json'
 
 const statusMap = {
   1: {

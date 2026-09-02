@@ -14,6 +14,7 @@ Vue.use(Router)
 const createRouter = () =>
   new Router({
     mode: 'history',
+    base: process.env.BASE_URL,
     routes: constantRouterMap
   })
 

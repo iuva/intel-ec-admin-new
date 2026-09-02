@@ -10,7 +10,7 @@
           <div class="header">
             <a href="/">
               <img src="~@/assets/logo.svg" class="logo" alt="logo">
-              <span class="title">xCopilot Background</span>
+              <span class="title">EC Admin</span>
             </a>
           </div>
         </div>
