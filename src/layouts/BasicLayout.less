@@ -17,6 +17,9 @@
 
   img {
     height: 32px;
+    width: auto;
+    // 禁止 flex 收缩压缩宽度：侧边栏收起时保持原始宽高比不变形
+    flex-shrink: 0;
     margin-right: 12px;
   }
 
