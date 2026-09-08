@@ -79,21 +79,76 @@
       </div>
     </template>
 
-    <!-- Hardware Information：JSON 树展示，按 key 收起/展开，默认收缩 -->
+    <!-- Hardware Information：默认 JSON 树展示；可切换为与上一次的对比视图（样式同 Pending HOST 详情审核弹窗） -->
     <a-card v-if="tabActiveKey === 'hardware'" :bordered="false" title="Hardware Information">
       <template slot="extra">
-        <!-- 单个切换按钮：已展开显示 Collapse All，已收缩显示 Expand All（样式同 Pending HOST 详情弹窗） -->
-        <a-button type="primary" :icon="jsonExpanded ? 'up' : 'down'" @click="toggleJsonTree">
-          {{ jsonExpanded ? 'Collapse All' : 'Expand All' }}
-        </a-button>
+        <div class="hardware-extra">
+          <!-- 最后更新时间（后续接入后端时替换） -->
+          <span class="last-updated">Last Updated: {{ hardwareLastUpdated }}</span>
+          <!-- 视图切换：JSON 树 / 与上一次的对比 -->
+          <a-radio-group v-model="hardwareView" button-style="solid" class="view-switch">
+            <a-radio-button value="tree">JSON</a-radio-button>
+            <a-radio-button value="diff">Compare</a-radio-button>
+          </a-radio-group>
+          <!-- 单个切换按钮：已展开显示 Collapse All，已收缩显示 Expand All（样式同 Pending HOST 详情弹窗） -->
+          <a-button type="primary" :icon="hardwareExpanded ? 'up' : 'down'" @click="handleToggleAll">
+            {{ hardwareExpanded ? 'Collapse All' : 'Expand All' }}
+          </a-button>
+        </div>
       </template>
+      <!-- 视图1：JSON 树，按 key 收起/展开 -->
       <json-view
+        v-show="hardwareView === 'tree'"
         :data="hardwareJson"
         :label="null"
         :init-expanded="true"
         :command="jsonCommand"
         @expanded-change="onJsonRootToggle"
       />
+      <!-- 视图2：与上一次硬件信息的对比（折叠面板 + CodeDiff 左右对比：左=上一次，右=当前） -->
+      <div v-show="hardwareView === 'diff'" class="diff-wrap">
+        <a-alert
+          class="diff-tip"
+          type="info"
+          show-icon
+          message="Compare the current hardware information with the last updated version. Green: Added, Red: Deleted, Yellow: Modified"
+        />
+        <a-collapse v-model="diffActiveKey">
+          <!-- 可收缩面板为硬件信息 JSON 第一层级的 key（revision、mainboard、hsio、memory、security、soc 等） -->
+          <a-collapse-panel v-for="section in diffSections" :key="section">
+            <template slot="header">
+              <div class="diff-panel-header">
+                <span class="diff-panel-title">{{ section }}</span>
+                <span class="diff-panel-stat">
+                  <a-badge v-if="diffStats[section] && diffStats[section].isChanged" :count="'+' + diffStats[section].addNum" :number-style="{ backgroundColor: '#52c41a', marginLeft: '8px' }" />
+                  <a-badge v-if="diffStats[section] && diffStats[section].isChanged" :count="'~' + diffStats[section].modNum" :number-style="{ backgroundColor: '#faad14', marginLeft: '8px' }" />
+                  <a-badge v-if="diffStats[section] && diffStats[section].isChanged" :count="'-' + diffStats[section].delNum" :number-style="{ backgroundColor: '#f5222d', marginLeft: '8px' }" />
+                  <a-tag v-if="diffStats[section] && !diffStats[section].isChanged" color="default">No Change</a-tag>
+                </span>
+              </div>
+            </template>
+            <!-- 外框 + 左右标签头：左侧=上一次，右侧=当前 -->
+            <div class="diff-frame">
+              <div class="diff-side-header">
+                <span class="side-label">Historical Data</span>
+                <span class="side-label">Current Data</span>
+              </div>
+              <!-- 左右对比：左侧=上一次，右侧=当前（同 Pending HOST 详情弹窗 CodeDiff 配置） -->
+              <CodeDiff
+                :old-string="jTos(lastHardwareJson[section])"
+                :new-string="jTos(hardwareJson[section])"
+                output-format="side-by-side"
+                :context="10"
+                :highlight="true"
+                language="json"
+                maxHeight="60vh"
+                :hide-header="true"
+                :hide-stat="true"
+              />
+            </div>
+          </a-collapse-panel>
+        </a-collapse>
+      </div>
     </a-card>
 
     <!-- Execution Logs：执行日志表格，分页 + 每页数量可选 -->
@@ -176,14 +231,32 @@
 <script>
 import { baseMixin } from '@/store/app-mixin'
 import { roleMixin, PASSWORD_MASK } from '@/utils/roles'
+import { CodeDiff } from 'v-code-diff'
 import JsonView from './JsonView'
 import hardwareJson from './hw.json'
+import { countDiffStats } from './jsonDiff'
+
+// 上一次的硬件信息快照示例：基于 hw.json 修改部分字段，便于演示对比效果（后续接入后端接口时替换）
+const buildLastSnapshot = () => {
+  const data = JSON.parse(JSON.stringify(hardwareJson))
+  data.revision = '0.0.9'
+  data.mainboard.board.lsio.nvme_installed = true
+  data.mainboard.board.peripheral.flash_programmer_installed = true
+  data.mainboard.misc.bmc_version = 'bhs-25.05-0-ge1a2b3-5c6def2'
+  data.mainboard.misc.cpld_version = '0.38'
+  data.memory[0].memory.memory_meta_data.total_memory_size.value = 128
+  data.memory[0].memory.channel = data.memory[0].memory.channel.filter(ch => ch.socket_id === 0)
+  data.soc[1].soc.soc_feature.ddr5_freq = 4800
+  return data
+}
+const lastSnapshot = buildLastSnapshot()
 
 export default {
   name: 'HostDetail',
   mixins: [baseMixin, roleMixin],
   components: {
-    JsonView
+    JsonView,
+    CodeDiff
   },
   beforeCreate () {
     // Update Password 表单
@@ -229,8 +302,16 @@ export default {
         Offline: '#fafafa'
       },
 
-      // 硬件信息 JSON 示例数据
+      // 硬件信息 JSON 示例数据（当前）
       hardwareJson,
+      // 上一次的硬件信息快照（对比视图 Historical Data 一侧）
+      lastHardwareJson: lastSnapshot,
+      // 硬件信息最后更新时间（后续接入后端时替换）
+      hardwareLastUpdated: '2026-08-28 10:12',
+      // 硬件信息展示视图：tree=JSON 树 / diff=与上一次的对比
+      hardwareView: 'tree',
+      // 对比视图折叠面板展开项（默认全部收缩）
+      diffActiveKey: [],
       // JSON 树一键展开/收起命令（seq 自增保证重复点击也能触发 watch）
       jsonCommand: { action: '', seq: 0 },
       // JSON 树当前是否全部展开（初始为第一层级收缩态，按钮显示 Expand All）
@@ -322,6 +403,40 @@ export default {
     },
     statusBgColor () {
       return this.hostStatusBgColorMap[this.hostStatus]
+    },
+    // 对比视图可收缩面板 = 硬件信息 JSON 第一层级的 key（revision、mainboard、hsio、memory、security、soc 等）
+    diffSections () {
+      return Object.keys(this.hardwareJson || {})
+    },
+    // 各面板的差异统计（新增/删除/修改叶子字段数），驱动面板标题右侧徽标
+    diffStats () {
+      const stats = {}
+      const last = this.lastHardwareJson || {}
+      Object.keys(this.hardwareJson || {}).forEach(key => {
+        stats[key] = countDiffStats(last[key], this.hardwareJson[key])
+      })
+      return stats
+    },
+    // Expand/Collapse All 按钮状态跟随当前视图：JSON 树看 jsonExpanded，对比视图看折叠面板是否全部展开
+    hardwareExpanded () {
+      if (this.hardwareView === 'tree') {
+        return this.jsonExpanded
+      }
+      return this.diffSections.length > 0 && this.diffActiveKey.length === this.diffSections.length
+    }
+  },
+  watch: {
+    // 切换到对比视图后标记「修改」行（CodeDiff 渲染完成后再扫描 DOM）
+    hardwareView (v) {
+      if (v === 'diff') {
+        this.$nextTick(() => setTimeout(() => this.markModifiedRows(), 200))
+      }
+    },
+    // 展开/收缩面板时 DOM 行可见性变化，重新标记
+    diffActiveKey () {
+      if (this.hardwareView === 'diff') {
+        this.$nextTick(() => this.markModifiedRows())
+      }
     }
   },
   methods: {
@@ -429,6 +544,40 @@ export default {
       }
       this.jsonExpanded = nextExpanded
     },
+    // Expand/Collapse All：跟随当前视图生效（JSON 树 / 对比视图折叠面板）
+    handleToggleAll () {
+      if (this.hardwareView === 'tree') {
+        this.toggleJsonTree()
+      } else {
+        this.toggleAllPanels()
+      }
+    },
+    // 对比视图：切换全部面板，已展开则全部收缩，已收缩则全部展开
+    toggleAllPanels () {
+      this.diffActiveKey = this.hardwareExpanded ? [] : [...this.diffSections]
+    },
+    // 对象转格式化 JSON 字符串（供 CodeDiff 左右对比展示）
+    jTos (v) {
+      return JSON.stringify(v, null, 2)
+    },
+    // 标记「修改」行：side-by-side 中 key 相同、value 变化表现为同一行左删右增，
+    // 为这类行加 modified-row 类，配合样式染成黄色（纯新增/纯删除保持绿/红）
+    // 注意：对比视图内嵌在卡片中（组件 $el 内），直接在 $el 范围内定位 diff 表格
+    markModifiedRows () {
+      if (!this.$el) return
+      const rows = this.$el.querySelectorAll('.file-diff-split tr[data-diff-change]')
+      rows.forEach(tr => {
+        const left = tr.querySelector('.split-side-left')
+        const right = tr.querySelector('.split-side-right')
+        if (
+          left && right &&
+          left.classList.contains('blob-code-deletion') &&
+          right.classList.contains('blob-code-addition')
+        ) {
+          tr.classList.add('modified-row')
+        }
+      })
+    },
     // 根节点手动收缩时同步按钮状态（根节点重新展开后子层级仍为收缩态，保持 Expand All）
     onJsonRootToggle (expanded) {
       if (!expanded) {
@@ -507,6 +656,106 @@ export default {
       font-size: 16px;
       font-weight: 600;
       line-height: 24px;
+    }
+  }
+
+  // Hardware Information 卡片 extra 区：最后更新时间 + 视图切换 + 展开/收起按钮
+  .hardware-extra {
+    display: inline-flex;
+    align-items: center;
+
+    .last-updated {
+      margin-right: 16px;
+      color: rgba(0, 0, 0, 0.45);
+      font-size: 12px;
+      line-height: 20px;
+      white-space: nowrap;
+    }
+
+    .view-switch {
+      margin-right: 8px;
+    }
+  }
+
+  // 对比视图：提示条与折叠面板（样式同 Pending HOST 详情审核弹窗）
+  .diff-wrap {
+    .diff-tip {
+      margin-bottom: 16px;
+    }
+  }
+
+  .diff-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding-right: 8px;
+  }
+
+  .diff-panel-title {
+    font-weight: 500;
+    font-size: 14px;
+    color: rgba(0, 0, 0, 0.85);
+  }
+
+  .diff-panel-stat {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /deep/ .ant-collapse {
+    .ant-collapse-content {
+      .ant-collapse-content-box {
+        padding: 0;
+
+        .code-diff-view {
+          margin-top: 0;
+          margin-bottom: 0;
+          border: 1px solid #e8e8e8;
+          border-top: none;
+          border-radius: 0 0 4px 4px;
+        }
+      }
+    }
+  }
+
+  // diff 区外框 + 左右标签头：标签头两格各占 50%，与 side-by-side 左右两栏对齐；
+  // 标签头与下方 diff 表格拼成一个完整外框
+  .diff-frame {
+    .diff-side-header {
+      display: flex;
+      border: 1px solid #e8e8e8;
+      border-bottom: none;
+      border-radius: 4px 4px 0 0;
+      background: #fafafa;
+
+      .side-label {
+        flex: 1;
+        padding: 8px 22px;
+        font-size: 13px;
+        font-weight: 500;
+        color: rgba(0, 0, 0, 0.85);
+
+        &:first-child {
+          border-right: 1px solid #e8e8e8;
+        }
+      }
+    }
+  }
+
+  // 「修改」行：同一行左删右增（key 不变、value 变化），左右两侧统一染黄；
+  // 纯新增行（左空右增）保持绿色、纯删除行（左删右空）保持红色
+  /deep/ .file-diff-split {
+    tr.modified-row {
+      .blob-code-deletion,
+      .blob-code-addition {
+        background-color: #fffbe6;
+      }
+
+      .blob-num-deletion,
+      .blob-num-addition {
+        background-color: #fff1b8;
+      }
     }
   }
 

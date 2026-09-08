@@ -283,6 +283,14 @@ export default {
       return this.selectedRowKeys.length > 0
     }
   },
+  created () {
+    // 从 Dashboard 指标卡跳转进入时，按 URL query 自动筛选状态
+    this.applyRouteStatus()
+  },
+  activated () {
+    // keepAlive 页面再次从 Dashboard 带状态进入时，重新应用筛选并刷新
+    this.applyRouteStatus()
+  },
   filters: {
     statusFilter (type) {
       return statusMap[type] ? statusMap[type].text : type
@@ -292,6 +300,18 @@ export default {
     }
   },
   methods: {
+    // 应用 URL query 中的状态筛选（仅当 query 带 status 参数时生效）
+    applyRouteStatus () {
+      const status = this.$route.query.status
+      if (status === undefined || status === this.queryParam.status) {
+        return
+      }
+      this.$set(this.queryParam, 'status', status)
+      // 首次进入时 s-table 未挂载，由初始加载读取 queryParam；keepAlive 再次进入时手动刷新
+      if (this.$refs.table) {
+        this.$refs.table.refresh(true)
+      }
+    },
     toggleAdvanced () {
       this.advanced = !this.advanced
     },

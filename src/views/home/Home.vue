@@ -21,7 +21,7 @@
         >
           <a-row>
             <a-col :span="6" v-for="m in metrics" :key="m.title">
-              <div class="metric-cell">
+              <div class="metric-cell metric-link" @click="handleMetricClick(m)">
                 <a-icon :type="m.icon" class="metric-icon" :style="{ color: m.color }" />
                 <div class="metric-meta">
                   <div class="metric-value" :style="{ color: m.color }">{{ m.value }}</div>
@@ -148,16 +148,17 @@ export default {
     return {
       loading: true,
 
-      // 区域1：指标展示区（两行四列）
+      // 区域1：指标展示区（两行四列），link 为点击跳转的目标列表页及状态筛选
       metrics: [
-        { title: 'Total Hosts', value: 148, icon: 'database', color: '#1890ff' },
-        { title: 'Idle Hosts', value: 62, icon: 'check-circle', color: '#52c41a' },
-        { title: 'Occupied Hosts', value: 45, icon: 'schedule', color: '#fa8c16' },
-        { title: 'Offline Hosts', value: 28, icon: 'disconnect', color: '#ff4d4f' },
-        { title: 'Pending Hosts', value: 13, icon: 'audit', color: '#722ed1' },
-        { title: 'Occupied Timeout Alerts', value: 3, icon: 'clock-circle', color: '#fa541c' },
-        { title: 'Offline Timeout Alerts', value: 2, icon: 'exclamation-circle', color: '#f5222d' },
-        { title: 'Hardware Update Timeout Alerts', value: 4, icon: 'laptop', color: '#d48806' }
+        { title: 'Total Hosts', value: 148, icon: 'database', color: '#1890ff', link: { path: '/available-host/list', query: { status: '' } } },
+        { title: 'Idle Hosts', value: 62, icon: 'check-circle', color: '#52c41a', link: { path: '/available-host/list', query: { status: 'Free' } } },
+        { title: 'Occupied Hosts', value: 45, icon: 'schedule', color: '#fa8c16', link: { path: '/available-host/list', query: { status: 'Occupied' } } },
+        { title: 'Offline Hosts', value: 28, icon: 'disconnect', color: '#ff4d4f', link: { path: '/available-host/list', query: { status: 'Offline' } } },
+        { title: 'Pending Hosts', value: 13, icon: 'audit', color: '#722ed1', link: { path: '/pending-host/list', query: { status: '' } } },
+        { title: 'Occupied Timeout Alerts', value: 3, icon: 'clock-circle', color: '#fa541c', link: { path: '/available-host/list', query: { status: 'Occupied' } } },
+        { title: 'Offline Timeout Alerts', value: 2, icon: 'exclamation-circle', color: '#f5222d', link: { path: '/available-host/list', query: { status: 'Offline' } } },
+        // 可用 HOST 无硬件更新对应状态，跳转后展示全部
+        { title: 'Hardware Update Timeout Alerts', value: 4, icon: 'laptop', color: '#d48806', link: { path: '/available-host/list', query: { status: '' } } }
       ],
 
       // 告警类型配置
@@ -239,6 +240,13 @@ export default {
     onPendingFilter ({ key }) {
       this.pendingFilter = key
     },
+    // 点击指标卡跳转对应 Host 列表页，携带状态筛选参数
+    handleMetricClick (m) {
+      if (!m.link) {
+        return
+      }
+      this.$router.push({ path: m.link.path, query: m.link.query })
+    },
     // 点击告警中的 hostname，跳转对应 Host 详情页（携带 hostname 供详情页展示）
     handleHostClick (item) {
       this.$router.push({
@@ -299,6 +307,16 @@ export default {
     color: rgba(0, 0, 0, 0.45);
     font-size: 14px;
     line-height: 22px;
+  }
+}
+
+/* 指标卡可点击：hover 反馈 + 跳转对应列表页 */
+.metric-link {
+  cursor: pointer;
+  transition: background-color 0.3s;
+
+  &:hover {
+    background-color: #f5f5f5;
   }
 }
 

@@ -8,7 +8,7 @@
           <span class="sys-name">{{ sys.key }}</span>
           <a-tag v-if="sys.version" class="sys-version-tag">v{{ sys.version }}</a-tag>
         </div>
-        <!-- 部署表单：Viewer 可见配置组件，仅隐藏 Deploy 按键 -->
+        <!-- 部署表单：Viewer 只读，Version / Installation Package / MD5 全部禁用，Deploy 按键隐藏 -->
         <div class="deploy-form">
           <div class="field field-version" :class="{ 'has-error': showError(sys, 'version') }">
             <span class="field-label"><span class="required-star">*</span>Version:</span>
@@ -16,6 +16,7 @@
               <a-input
                 v-model="sys.version"
                 placeholder="Please enter"
+                :disabled="isViewer"
                 @blur="sys.touched.version = true"
               />
               <div class="error-msg">Please enter Version</div>
@@ -26,6 +27,7 @@
             <div class="field-control">
               <!-- 点击加载本地文件：beforeUpload 拦截上传，仅取文件信息 -->
               <a-upload
+                v-if="!isViewer"
                 :showUploadList="false"
                 :beforeUpload="file => handleFileSelect(sys, file)"
               >
@@ -46,13 +48,19 @@
                   />
                 </div>
               </a-upload>
+              <!-- Viewer 只读：安装包选择置灰禁用 -->
+              <div v-else class="package-input is-disabled">
+                <a-icon type="upload" class="package-icon" />
+                <span v-if="sys.fileName" class="package-name">{{ sys.fileName }}</span>
+                <span v-else class="package-placeholder">Click to select file</span>
+              </div>
               <div class="error-msg">Please select Installation Package</div>
             </div>
           </div>
           <div class="field field-md5">
             <span class="field-label">MD5:</span>
             <div class="field-control">
-              <a-input v-model="sys.md5" placeholder="Please enter" />
+              <a-input v-model="sys.md5" placeholder="Please enter" :disabled="isViewer" />
             </div>
           </div>
           <div v-if="!isViewer" class="field-action">
@@ -259,6 +267,20 @@ export default {
   overflow: hidden;
   white-space: nowrap;
   transition: border-color 0.3s, box-shadow 0.3s;
+
+  // Viewer 只读禁用态
+  &.is-disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+
+    &:hover {
+      border-color: #d9d9d9;
+    }
+
+    .package-icon {
+      color: rgba(0, 0, 0, 0.25);
+    }
+  }
 
   &:hover {
     border-color: #1890ff;
