@@ -21,7 +21,7 @@
     -->
     <template v-slot:menuHeaderRender>
       <div class="sider-header-title">
-        <img src="@/assets/logo.png" />
+        <img src="../assets/logo.png" />
         <h1>{{ title }}</h1>
       </div>
     </template>
