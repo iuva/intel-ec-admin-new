@@ -343,11 +343,6 @@ export default {
     flex: 1 1 auto;
     min-width: 0;
 
-    // 数据不足一页时表体仍固定 450 高（与 :scroll.y 保持一致）
-    /deep/ .ant-table-body {
-      height: 450px;
-    }
-
     /deep/ .ant-table-tbody > tr {
       cursor: pointer;
     }
