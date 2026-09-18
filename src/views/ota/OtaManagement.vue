@@ -96,10 +96,6 @@
           </a-upload>
           <span v-if="addModal.fileName" class="add-file" :title="addModal.fileName">{{ addModal.fileName }}</span>
         </div>
-        <div class="add-field">
-          <span class="add-label">MD5:</span>
-          <a-input v-model="addModal.md5" placeholder="Auto-generated" />
-        </div>
       </a-modal>
     </a-card>
   </page-header-wrapper>
