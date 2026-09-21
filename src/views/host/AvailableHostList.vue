@@ -62,7 +62,10 @@
         size="default"
         rowKey="hostname"
         :columns="columns"
-        :data="loadData"
+        :data="fetchEnabledList"
+        :dataAfter="hostListRes"
+        :dataBefore="hostListReq"
+        :params="queryParam"
         showPagination="auto"
       >
         <span slot="status" slot-scope="text">
@@ -98,11 +101,13 @@
 <script>
 import { STable, Ellipsis } from '@/components'
 import { roleMixin } from '@/utils/roles'
+import { fetchEnabledList } from '@/api/host'
+import { stateDict } from '@/store/dict'
 
 const columns = [
   {
     title: 'Host ID',
-    dataIndex: 'id'
+    dataIndex: 'host_id'
   },
   {
     title: 'Hostname',
@@ -114,12 +119,12 @@ const columns = [
   },
   {
     title: 'Status',
-    dataIndex: 'status',
+    dataIndex: 'host_state',
     scopedSlots: { customRender: 'status' }
   },
   {
     title: 'User',
-    dataIndex: 'user',
+    dataIndex: 'username',
     // 仅 Occupied / Running 状态有使用者，其它状态显示「-」
     customRender: (text, record) => (record.status === 'Occupied' || record.status === 'Running' ? text : '-')
   },
@@ -140,24 +145,6 @@ const columns = [
   }
 ]
 
-const statusMap = {
-  Free: {
-    color: 'green',
-    text: 'Free'
-  },
-  Occupied: {
-    color: 'orange',
-    text: 'Occupied'
-  },
-  Running: {
-    color: 'blue',
-    text: 'Running'
-  },
-  Offline: {
-    color: 'red',
-    text: 'Offline'
-  }
-}
 
 // 模拟数据，后续接入后端接口时替换
 // 仅 Occupied / Running 状态有使用者、tc_id、占用时间和占用时长，
@@ -184,6 +171,7 @@ export default {
       advanced: false,
       // 查询参数
       queryParam: {},
+      fetchEnabledList,
       // 加载数据方法 必须为 Promise 对象
       loadData: parameter => {
         const requestParameters = Object.assign({}, parameter, this.queryParam)
@@ -218,10 +206,10 @@ export default {
   },
   filters: {
     statusFilter (type) {
-      return statusMap[type] ? statusMap[type].text : type
+      return stateDict.host[type] ? stateDict.host[type].text : type
     },
     statusColorFilter (type) {
-      return statusMap[type] ? statusMap[type].color : 'default'
+      return stateDict.host[type] ? stateDict.host[type].color : 'default'
     }
   },
   methods: {
@@ -235,6 +223,17 @@ export default {
       // 首次进入时 s-table 未挂载，由初始加载读取 queryParam；keepAlive 再次进入时手动刷新
       if (this.$refs.table) {
         this.$refs.table.refresh(true)
+      }
+    },
+    hostListReq (params) {
+      // Object.assign(params, this.queryParam)
+    },
+    hostListRes (res) {
+      console.log('hostListRes', res)
+      return {
+        pageNo: res.data.page,
+        totalCount: res.data.total,
+        data: res.data.hosts
       }
     },
     toggleAdvanced () {

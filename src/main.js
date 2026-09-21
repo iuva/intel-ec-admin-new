@@ -13,7 +13,8 @@ import themePluginConfig from '../config/themePluginConfig'
 
 // mock
 // WARNING: `mockjs` NOT SUPPORT `IE` PLEASE DO NOT USE IN `production` ENV.
-import './mock'
+// 已接入真实后端接口，关闭 mock（其正则会劫持如 /api/v1/auth/admin/login 等真实请求）
+// import './mock'
 
 import bootstrap from './core/bootstrap'
 import './core/lazy_use' // use lazy load components

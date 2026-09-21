@@ -42,6 +42,7 @@ export default {
   name: 'JsonView',
   props: {
     data: {
+      type: Object,
       required: true
     },
     // 节点显示名；根节点传 null 表示不显示 key

@@ -52,15 +52,6 @@
 
     </a-form>
 
-    <!-- 演示账号提示：账号管理维护的 mock 账号，不同角色登录后页面权限不同 -->
-    <a-alert
-      type="info"
-      show-icon
-      style="margin-top: 24px"
-      message="Demo Accounts"
-      description="Admin: admin / Admin@2025 · Lab Tech: labtech01 / Lab@2025 · Viewer: viewer01 / View@2025"
-    />
-
     <two-step-captcha
       v-if="requiredTwoStepCaptcha"
       :visible="stepCaptchaVisible"
@@ -71,11 +62,13 @@
 </template>
 
 <script>
-import md5 from 'md5'
+// import md5 from 'md5'
 import TwoStepCaptcha from '@/components/tools/TwoStepCaptcha'
 import { mapActions } from 'vuex'
 import { timeFix } from '@/utils/util'
-import { get2step } from '@/api/login'
+import storage from 'store'
+import { REMEMBER_ME_USERNAME, REMEMBER_ME_PASSWORD } from '@/store/mutation-types'
+// import { get2step } from '@/api/login'
 
 export default {
   components: {
@@ -98,14 +91,22 @@ export default {
     }
   },
   created () {
-    get2step({ })
-      .then(res => {
-        this.requiredTwoStepCaptcha = res.result.stepCode
-      })
-      .catch(() => {
-        this.requiredTwoStepCaptcha = false
-      })
-    // this.requiredTwoStepCaptcha = true
+    // get2step({ })
+    //   .then(res => {
+    //     this.requiredTwoStepCaptcha = res.result.stepCode
+    //   })
+    //   .catch(() => {
+    //     this.requiredTwoStepCaptcha = false
+    //   })
+    this.requiredTwoStepCaptcha = true
+  },
+  mounted () {
+    // 回填“记住密码”保存的账号信息
+    const username = storage.get(REMEMBER_ME_USERNAME)
+    const password = storage.get(REMEMBER_ME_PASSWORD)
+    if (username && password) {
+      this.form.setFieldsValue({ username, password, rememberMe: true })
+    }
   },
   methods: {
     ...mapActions(['Login', 'Logout']),
@@ -130,15 +131,24 @@ export default {
 
       state.loginBtn = true
 
-      const validateFieldsKey = ['username', 'password']
+      const validateFieldsKey = ['username', 'password', 'rememberMe']
 
       validateFields(validateFieldsKey, { force: true }, (err, values) => {
         if (!err) {
           console.log('login form', values)
           const loginParams = { ...values }
+          delete loginParams.rememberMe
           delete loginParams.username
           loginParams[!state.loginType ? 'email' : 'username'] = values.username
-          loginParams.password = md5(values.password)
+          loginParams.password = values.password
+          // 记住密码：勾选时保存，未勾选时清除
+          if (values.rememberMe) {
+            storage.set(REMEMBER_ME_USERNAME, values.username)
+            storage.set(REMEMBER_ME_PASSWORD, values.password)
+          } else {
+            storage.remove(REMEMBER_ME_USERNAME)
+            storage.remove(REMEMBER_ME_PASSWORD)
+          }
           Login(loginParams)
             .then((res) => this.loginSuccess(res))
             .catch(err => this.requestFailed(err))
@@ -174,7 +184,13 @@ export default {
         })
       })
       */
-      this.$router.push({ path: '/' })
+      // 登录成功后优先跳回登录前携带的 toPath 页面
+      const toPath = this.$route.query.toPath
+      if (toPath) {
+        this.$router.push(toPath)
+      } else {
+        this.$router.push({ path: '/' })
+      }
       // 延迟 1 秒显示欢迎信息
       setTimeout(() => {
         this.$notification.success({

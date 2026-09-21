@@ -1,13 +1,15 @@
 import storage from 'store'
 import expirePlugin from 'store/plugins/expire'
-import { login, getInfo, logout } from '@/api/login'
-import { ACCESS_TOKEN } from '@/store/mutation-types'
+import { getInfo } from '@/api/login'
+import { login } from '@/api/index'
+import { ACCESS_TOKEN, REFRESH_TOKEN } from '@/store/mutation-types'
 import { welcome } from '@/utils/util'
 
 storage.addPlugin(expirePlugin)
 const user = {
   state: {
     token: '',
+    refreshToken: '',
     name: '',
     welcome: '',
     avatar: '',
@@ -18,6 +20,9 @@ const user = {
   mutations: {
     SET_TOKEN: (state, token) => {
       state.token = token
+    },
+    SET_REFRESH_TOKEN: (state, refreshToken) => {
+      state.refreshToken = refreshToken
     },
     SET_NAME: (state, { name, welcome }) => {
       state.name = name
@@ -39,9 +44,11 @@ const user = {
     Login ({ commit }, userInfo) {
       return new Promise((resolve, reject) => {
         login(userInfo).then(response => {
-          const result = response.result
-          storage.set(ACCESS_TOKEN, result.token, new Date().getTime() + 7 * 24 * 60 * 60 * 1000)
+          const result = response.data
+          storage.set(ACCESS_TOKEN, result.token)
+          storage.set(REFRESH_TOKEN, result.refresh_token)
           commit('SET_TOKEN', result.token)
+          commit('SET_REFRESH_TOKEN', result.refresh_token)
           resolve()
         }).catch(error => {
           reject(error)
@@ -86,16 +93,18 @@ const user = {
     // 登出
     Logout ({ commit, state }) {
       return new Promise((resolve) => {
-        logout(state.token).then(() => {
+        // logout({ token: `Bearer ${state.token}` }).then(() => {
           commit('SET_TOKEN', '')
+          commit('SET_REFRESH_TOKEN', '')
           commit('SET_ROLES', [])
           storage.remove(ACCESS_TOKEN)
+          storage.remove(REFRESH_TOKEN)
           resolve()
-        }).catch((err) => {
-          console.log('logout fail:', err)
-          // resolve()
-        }).finally(() => {
-        })
+        // }).catch((err) => {
+        //   console.log('logout fail:', err)
+        //   // resolve()
+        // }).finally(() => {
+        // })
       })
     }
 

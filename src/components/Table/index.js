@@ -23,9 +23,17 @@ export default {
       type: [String, Function],
       default: 'key'
     },
+    dataBefore: {
+      type: Function,
+      default: null
+    },
     data: {
       type: Function,
       required: true
+    },
+    dataAfter: {
+      type: Function,
+      default: null
     },
     pageNum: {
       type: Number,
@@ -52,6 +60,10 @@ export default {
     alert: {
       type: [Object, Boolean],
       default: null
+    },
+    params: {
+      type: Object,
+      default: {}
     },
     rowSelection: {
       type: Object,
@@ -156,17 +168,22 @@ export default {
       (sorter && sorter.order && {
         sortOrder: sorter.order
       }) || {}, {
-        ...filters
+        ...filters, ...this.params
       }
       )
+      this.dataBefore && this.dataBefore(parameter)
       const result = this.data(parameter)
       // 对接自己的通用数据接口需要修改下方代码中的 r.pageNo, r.totalCount, r.data
       // eslint-disable-next-line
       if ((typeof result === 'object' || typeof result === 'function') && typeof result.then === 'function') {
         result.then(r => {
+          let pageInfo = r
+          if (this.dataAfter) {
+            pageInfo = this.dataAfter(r)
+          }
           this.localPagination = this.showPagination && Object.assign({}, this.localPagination, {
-            current: r.pageNo, // 返回结果中的当前分页数
-            total: r.totalCount, // 返回结果中的总记录数
+            current: pageInfo.pageNo, // 返回结果中的当前分页数
+            total: pageInfo.totalCount, // 返回结果中的总记录数
             showSizeChanger: this.showSizeChanger,
             pageSize: (pagination && pagination.pageSize) ||
               this.localPagination.pageSize
@@ -187,7 +204,9 @@ export default {
           } catch (e) {
             this.localPagination = false
           }
-          this.localDataSource = r.data // 返回结果中的数组数据
+          this.localDataSource = pageInfo.data // 返回结果中的数组数据
+        }).catch(() => {
+          this.localDataSource = []
         })
         .finally(() => {
           this.localLoading = false

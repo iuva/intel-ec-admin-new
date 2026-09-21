@@ -124,15 +124,19 @@ const vueConfig = {
 
   devServer: {
     // development server port 8000
-    port: 8001
-    // If you want to turn on the proxy, please remove the mockjs /src/main.jsL11
-    // proxy: {
-    //   '/api': {
-    //     target: 'https://mock.ihx.me/mock/5baf3052f7da7e07e04a5116/antd-pro',
-    //     ws: false,
-    //     changeOrigin: true
-    //   }
-    // }
+    port: 3000,
+    // 开发环境代理：后端接口路径本身以 /api/v1 开头，无需 pathRewrite
+    proxy: {
+      '/api': {
+        target: 'http://192.168.101.70:8000',
+        ws: false,
+        changeOrigin: true,
+        // 替换掉api
+        pathRewrite: {
+          '^/api': ''
+        }
+      }
+    }
   },
 
   // disable source map in production

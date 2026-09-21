@@ -1,4 +1,8 @@
 export const ACCESS_TOKEN = 'Access-Token'
+export const REFRESH_TOKEN = 'Refresh-Token'
+
+export const REMEMBER_ME_USERNAME = 'Remember-Me-Username'
+export const REMEMBER_ME_PASSWORD = 'Remember-Me-Password'
 
 export const SIDEBAR_TYPE = 'sidebar_type'
 export const TOGGLE_MOBILE_TYPE = 'is_mobile'
