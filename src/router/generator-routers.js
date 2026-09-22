@@ -21,7 +21,7 @@ const constantRouterComponents = {
   // exception
   Exception403: () => import(/* webpackChunkName: "fail" */ '@/views/exception/403'),
   Exception404: () => import(/* webpackChunkName: "fail" */ '@/views/exception/404'),
-  Exception500: () => import(/* webpackChunkName: "fail" */ '@/views/exception/500'),
+  Exception500: () => import(/* webpackChunkName: "fail" */ '@/views/exception/500')
 
 
   // 'TestWork': () => import(/* webpackChunkName: "TestWork" */ '@/views/dashboard/TestWork')
