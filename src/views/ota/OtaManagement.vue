@@ -1,6 +1,9 @@
 <template>
   <!-- 一级功能页：面包屑仅显示功能名本身（覆盖 matched 多层级默认渲染） -->
-  <page-header-wrapper :breadcrumb="{ props: { routes: [{ path: '/ota-management', breadcrumbName: $t('menu.ota-management') }] } }">
+  <page-header-wrapper
+    class="ota-management"
+    :breadcrumb="{ props: { routes: [{ path: '/ota-management', breadcrumbName: $t('menu.ota-management') }] } }"
+  >
     <a-card :bordered="false">
       <a-tabs v-model="activeTab">
         <!-- 新增版本：与 tab 标题平齐，显示在右侧 -->
@@ -329,6 +332,12 @@ export default {
 </script>
 
 <style lang="less" scoped>
+.ota-management{
+  height: calc(100vh - 64px)!important;
+  display: block !important;
+  overflow-y: auto !important;
+}
+
 .ota-layout {
   display: flex;
   align-items: flex-start;
@@ -454,6 +463,9 @@ export default {
   .host-table {
     /deep/ .ant-table-body {
       height: 320px;
+    }
+    /deep/ .ant-table-pagination{
+      padding-top: 10px;
     }
   }
 }

@@ -1,5 +1,8 @@
 <template>
-  <page-header-wrapper :breadcrumb="{ props: { routes: [{ path: '/home', breadcrumbName: $t('menu.home') }] } }">
+  <page-header-wrapper
+    class="home-page-root"
+    :breadcrumb="{ props: { routes: [{ path: '/home', breadcrumbName: $t('menu.home') }] } }"
+  >
     <a-row :gutter="24" type="flex">
       <!-- 左列：指标展示区 + 告警动态 -->
       <a-col
@@ -270,6 +273,13 @@ export default {
 </script>
 
 <style lang="less" scoped>
+.home-page-root{
+  height: calc(100vh - 64px)!important;
+  display: block !important;
+  overflow-y: auto !important;
+}
+
+
 /* 左右两列等高（a-row 为 flex），底部对齐 */
 .main-col,
 .pending-col {

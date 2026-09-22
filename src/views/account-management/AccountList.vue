@@ -1,6 +1,9 @@
 <template>
   <!-- 一级功能页：面包屑仅显示功能名本身（覆盖 matched 多层级默认渲染） -->
-  <page-header-wrapper :breadcrumb="{ props: { routes: [{ path: '/account-management', breadcrumbName: $t('menu.account-management') }] } }">
+  <page-header-wrapper
+    class="account-management"
+    :breadcrumb="{ props: { routes: [{ path: '/account-management', breadcrumbName: $t('menu.account-management') }] } }"
+  >
     <a-card :bordered="false">
       <div class="table-page-search-wrapper">
         <a-form layout="inline">
@@ -331,6 +334,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
+
 // 搜索区域：标签固定宽度右对齐，保证各列控件起始位置统一
 .table-page-search-wrapper {
   /deep/ .ant-form-item-label {

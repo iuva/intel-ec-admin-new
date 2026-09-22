@@ -405,9 +405,9 @@ export default {
 <style lang="less" scoped>
 
 .pending-host-detail-tabs{
-
+  height: calc(100vh - 64px)!important;
+  display: block !important;
   overflow-y: auto !important;
-  height: auto !important;
 }
 
 // 板块标题（Hardware Information）
