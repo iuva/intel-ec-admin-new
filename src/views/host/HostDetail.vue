@@ -594,6 +594,9 @@ export default {
     /deep/ .ant-tabs-tab {
       font-weight: 600;
     }
+
+    overflow-y: auto !important;
+    height: auto !important;
   }
 
   .text {

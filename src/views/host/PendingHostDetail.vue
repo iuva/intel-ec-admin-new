@@ -1,6 +1,10 @@
 <template>
   <!-- 页头标题：HOST ID（同 Host 详情页）；面包屑：Pending HOST（点击回列表）/ Pending HOST 详情（当前页） -->
-  <page-header-wrapper :title="'HOST ID: ' + hostId" :breadcrumb="breadcrumb">
+  <page-header-wrapper
+    class="pending-host-detail-tabs"
+    :title="'HOST ID: ' + hostId"
+    :breadcrumb="breadcrumb"
+  >
     <!-- content（左：Identification Information）与 extraContent（右：Status）在同一 flex 行，实现左右布局 -->
     <template v-slot:content>
       <a-descriptions size="small" :column="3" class="host-meta">
@@ -399,6 +403,13 @@ export default {
 </script>
 
 <style lang="less" scoped>
+
+.pending-host-detail-tabs{
+
+  overflow-y: auto !important;
+  height: auto !important;
+}
+
 // 板块标题（Hardware Information）
 .title {
   color: rgba(0, 0, 0, .85);
