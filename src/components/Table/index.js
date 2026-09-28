@@ -63,7 +63,7 @@ export default {
     },
     params: {
       type: Object,
-      default: {}
+      default: null
     },
     rowSelection: {
       type: Object,
@@ -168,7 +168,7 @@ export default {
       (sorter && sorter.order && {
         sortOrder: sorter.order
       }) || {}, {
-        ...filters, ...this.params
+        ...filters, ...this.params || {}
       }
       )
       this.dataBefore && this.dataBefore(parameter)
