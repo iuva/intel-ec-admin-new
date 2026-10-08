@@ -34,8 +34,8 @@
       </div>
 
       <div class="table-operator">
-        <!-- 新增账号：仅 Admin 可见 -->
-        <a-button v-if="isAdmin" type="dashed" icon="plus" @click="handleAdd">Add Account</a-button>
+        <!-- 按钮权限：v-action 配置见 src/permission.js -> ROLE_CONFIG[role].actions（仅 Admin 可见） -->
+        <a-button v-action:account:add type="dashed" icon="plus" @click="handleAdd">Add Account</a-button>
       </div>
 
       <s-table
@@ -56,13 +56,9 @@
         </span>
 
         <span slot="action" slot-scope="text, record" class="account-actions">
-          <template>
-            <a @click="handleView(record)">View</a>
-            <template v-if="isAdmin">
-              <a-divider type="vertical" />
-              <a class="danger-link" @click="handleDelete(record)">Delete</a>
-            </template>
-          </template>
+          <a @click="handleView(record)">View</a>
+          <a-divider v-action:account:delete type="vertical" />
+          <a v-action:account:delete class="danger-link" @click="handleDelete(record)">Delete</a>
         </span>
       </s-table>
 

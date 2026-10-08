@@ -57,10 +57,10 @@
         </a-form>
       </div>
 
-      <!-- 操作按钮：Viewer 只读不可见 -->
-      <div v-if="!isViewer" class="table-operator">
-        <a-button type="primary" icon="check-circle" :disabled="!hasSelected" @click="handleBatchApprove">Batch Approve Version Upgrade</a-button>
-        <a-button icon="mail" style="margin-left: 8px" @click="handleMaintainEmail">Maintain Notification Email</a-button>
+      <!-- 操作按钮权限：v-action 配置见 src/permission.js -> ROLE_CONFIG[role].actions -->
+      <div class="table-operator">
+        <a-button v-action:host:approve type="primary" icon="check-circle" :disabled="!hasSelected" @click="handleBatchApprove">Batch Approve Version Upgrade</a-button>
+        <a-button v-action:host:email icon="mail" style="margin-left: 8px" @click="handleMaintainEmail">Maintain Notification Email</a-button>
       </div>
 
       <s-table
@@ -78,19 +78,11 @@
         </span>
 
         <span slot="action" slot-scope="text, record" class="host-actions">
-          <template>
-            <!-- Approve Enable：Viewer 只读不可见 -->
-            <template v-if="!isViewer">
-              <a @click="handleApproveEnable(record)">Approve Enable</a>
-              <a-divider type="vertical" />
-            </template>
-            <a @click="handleView(record)">View</a>
-            <!-- Delete：仅 Admin 可见 -->
-            <template v-if="isAdmin">
-              <a-divider type="vertical" />
-              <a class="danger-link" @click="handleDelete(record)">Delete</a>
-            </template>
-          </template>
+          <a v-action:host:approve @click="handleApproveEnable(record)">Approve Enable</a>
+          <a-divider v-action:host:approve type="vertical" />
+          <a @click="handleView(record)">View</a>
+          <a-divider v-action:host:delete type="vertical" />
+          <a v-action:host:delete class="danger-link" @click="handleDelete(record)">Delete</a>
         </span>
       </s-table>
 
@@ -124,7 +116,6 @@
 
 <script>
 import { STable, Ellipsis } from '@/components'
-import { roleMixin } from '@/utils/roles'
 
 const columns = [
   {
@@ -223,7 +214,6 @@ export default {
     STable,
     Ellipsis
   },
-  mixins: [roleMixin],
   beforeCreate () {
     // 维护通知邮箱表单（a-form + v-decorator）
     this.emailForm = this.$form.createForm(this)

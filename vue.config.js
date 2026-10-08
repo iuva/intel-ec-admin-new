@@ -128,7 +128,7 @@ const vueConfig = {
     // 开发环境代理：后端接口路径本身以 /api/v1 开头，无需 pathRewrite
     proxy: {
       '/api': {
-        target: 'http://192.168.101.70:8000',
+        target: 'http://192.168.101.55:8000',
         ws: false,
         changeOrigin: true,
         // 替换掉api

@@ -1,6 +1,9 @@
 export const ACCESS_TOKEN = 'Access-Token'
 export const REFRESH_TOKEN = 'Refresh-Token'
 
+// 当前登录账号（name/role/avatar）：刷新页面后按此还原角色与路由权限
+export const CURRENT_USER = 'Current-User'
+
 export const REMEMBER_ME_USERNAME = 'Remember-Me-Username'
 export const REMEMBER_ME_PASSWORD = 'Remember-Me-Password'
 

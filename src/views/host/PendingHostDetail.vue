@@ -28,9 +28,9 @@
         </a-descriptions-item>
       </a-descriptions>
     </template>
-    <!-- actions：页头右上角操作区（同 Host 详情页 extra 布局）；Approve Enable 仅非 Viewer 可见 -->
+    <!-- actions：页头右上角操作区（同 Host 详情页 extra 布局）；按钮权限配置见 src/permission.js -->
     <template v-slot:extra>
-      <a-button v-if="!isViewer" type="primary" @click="handleApproveEnable">Approve Enable</a-button>
+      <a-button v-action:host:approve type="primary" @click="handleApproveEnable">Approve Enable</a-button>
     </template>
     <!-- Status：语义色圆点 + 浅色底 pill（同 Host 详情状态区样式） -->
     <template v-slot:extraContent>

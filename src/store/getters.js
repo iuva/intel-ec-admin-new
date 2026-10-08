@@ -8,6 +8,8 @@ const getters = {
   nickname: state => state.user.name,
   welcome: state => state.user.welcome,
   roles: state => state.user.roles,
+  // 当前角色按钮权限数组（登录后由 permission.js 守卫按 ROLE_CONFIG 写入）
+  actions: state => state.user.actions,
   userInfo: state => state.user.info,
   addRouters: state => state.permission.addRouters,
   multiTab: state => state.app.multiTab

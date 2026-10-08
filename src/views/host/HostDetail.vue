@@ -57,16 +57,15 @@
     </template>
 
     <!-- actions：realvnc 为高频主操作（primary），其余为次要操作；
-         角色控制：Viewer 只读全部隐藏，Lab Tech 可用 realvnc 但无 Update Password，Admin 全部 -->
+         按钮权限：v-action 配置见 src/permission.js -> ROLE_CONFIG[role].actions
+         （Viewer 只读全部隐藏，Lab Tech 可用 realvnc 但无 Update Password，Admin 全部） -->
     <template v-slot:extra>
-      <template v-if="!isViewer">
-        <a-button type="primary" style="margin-right: 4px;" @click="vncVisible = true">realvnc</a-button>
-      </template>
-      <a-button-group v-if="!isViewer">
-        <a-button @click="handleDisableHost">Disable host</a-button>
-        <a-button @click="handleGoOffline">Go offline</a-button>
+      <a-button v-action:host:vnc type="primary" style="margin-right: 4px;" @click="vncVisible = true">realvnc</a-button>
+      <a-button-group>
+        <a-button v-action:host:disable @click="handleDisableHost">Disable host</a-button>
+        <a-button v-action:host:offline @click="handleGoOffline">Go offline</a-button>
       </a-button-group>
-      <a-button v-if="isAdmin" style="margin-left: 8px;" @click="pwdVisible = true">Update Password</a-button>
+      <a-button v-action:host:password style="margin-left: 8px;" @click="pwdVisible = true">Update Password</a-button>
     </template>
 
     <template v-slot:extraContent>

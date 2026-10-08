@@ -73,25 +73,19 @@
         </span>
 
         <span slot="action" slot-scope="text, record" class="host-actions">
-          <template>
-            <a @click="handleView(record)">View</a>
-            <!-- Disable / Go Offline：Viewer 只读不可见 -->
-            <template v-if="!isViewer">
-              <a-divider type="vertical" />
-              <a @click="handleDisable(record)">Disable</a>
-              <a-divider type="vertical" />
-              <!-- 已 Offline 的 Host 不允许再次下线，禁用 Go Offline -->
-              <a
-                :class="{ 'disabled-link': record.status === 'Offline' }"
-                @click="handleOffline(record)"
-              >Go Offline</a>
-            </template>
-            <!-- Delete：仅 Admin 可见 -->
-            <template v-if="isAdmin">
-              <a-divider type="vertical" />
-              <a class="danger-link" @click="handleDelete(record)">Delete</a>
-            </template>
-          </template>
+          <a @click="handleView(record)">View</a>
+          <!-- 按钮权限：v-action 配置见 src/permission.js -> ROLE_CONFIG[role].actions -->
+          <a-divider v-action:host:disable type="vertical" />
+          <a v-action:host:disable @click="handleDisable(record)">Disable</a>
+          <!-- 已 Offline 的 Host 不允许再次下线，禁用 Go Offline -->
+          <a-divider v-action:host:offline type="vertical" />
+          <a
+            v-action:host:offline
+            :class="{ 'disabled-link': record.status === 'Offline' }"
+            @click="handleOffline(record)"
+          >Go Offline</a>
+          <a-divider v-action:host:delete type="vertical" />
+          <a v-action:host:delete class="danger-link" @click="handleDelete(record)">Delete</a>
         </span>
       </s-table>
     </a-card>
@@ -100,7 +94,6 @@
 
 <script>
 import { STable, Ellipsis } from '@/components'
-import { roleMixin } from '@/utils/roles'
 import { fetchEnabledList } from '@/api/host'
 import { stateDict } from '@/store/dict'
 
@@ -163,7 +156,6 @@ export default {
     STable,
     Ellipsis
   },
-  mixins: [roleMixin],
   data () {
     this.columns = columns
     return {
