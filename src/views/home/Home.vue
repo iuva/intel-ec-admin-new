@@ -36,7 +36,7 @@
         </a-card>
 
         <!-- 区域2：告警动态 -->
-        <a-card title="Alerts" class="alert-card" :loading="loading" :bordered="false">
+        <a-card title="Alerts" class="alert-card" :bordered="false">
           <template slot="extra">
             <a-dropdown :trigger="['click']">
               <a class="alert-filter">
@@ -50,8 +50,12 @@
               </a-menu>
             </a-dropdown>
           </template>
-          <a-list :loading="loading">
-            <a-list-item :key="index" v-for="(item, index) in filteredAlerts">
+          <a-list
+            class="alert-list-scroll"
+            :loading="alertLoading"
+            @scroll.native="onAlertScroll"
+          >
+            <a-list-item :key="index" v-for="(item, index) in alertList">
               <a-list-item-meta>
                 <a-avatar
                   slot="avatar"
@@ -78,6 +82,14 @@
                 </div>
               </a-list-item-meta>
             </a-list-item>
+            <!-- key 防止被 a-list loading 的内部占位 div（无 key）复用，避免 scoped 属性丢失导致样式失效 -->
+            <div v-if="loadingMoreAlerts" key="alert-loading-more" class="loading-more">
+              <a-spin size="small" />
+              <span>Loading...</span>
+            </div>
+            <div v-else-if="!alertLoading && alertList.length && !alertHasMore" key="alert-loaded-all" class="loaded-all">
+              All data loaded
+            </div>
           </a-list>
         </a-card>
       </a-col>
@@ -91,7 +103,7 @@
         :sm="24"
         :xs="24"
       >
-        <a-card title="Pending Approvals" :loading="loading" :bordered="false">
+        <a-card title="Pending Approvals" :bordered="false">
           <template slot="extra">
             <a-dropdown :trigger="['click']">
               <a class="alert-filter">
@@ -105,8 +117,12 @@
               </a-menu>
             </a-dropdown>
           </template>
-          <a-list :loading="loading">
-            <a-list-item :key="index" v-for="(item, index) in filteredPendingList">
+          <a-list
+            class="list-scroll"
+            :loading="pendingLoading"
+            @scroll.native="onPendingScroll"
+          >
+            <a-list-item :key="index" v-for="(item, index) in pendingList">
               <a-list-item-meta>
                 <a-avatar
                   slot="avatar"
@@ -123,6 +139,13 @@
                 </div>
               </a-list-item-meta>
             </a-list-item>
+            <div v-if="loadingMorePending" key="pending-loading-more" class="loading-more">
+              <a-spin size="small" />
+              <span>Loading...</span>
+            </div>
+            <div v-else-if="!pendingLoading && pendingList.length && !pendingHasMore" key="pending-loaded-all" class="loaded-all">
+              All data loaded
+            </div>
           </a-list>
         </a-card>
       </a-col>
@@ -131,6 +154,20 @@
 </template>
 
 <script>
+import moment from 'moment'
+import { stats, alerts } from '@/api/home'
+
+// 列表分页大小（接口默认 10，最大 100）
+const PAGE_SIZE = 10
+
+// 告警筛选 key → 接口 type 参数（hardware 对应接口的 hw_stale）
+const alertFilterTypeMap = {
+  all: 'all',
+  occupied: 'occupied',
+  offline: 'offline',
+  hardware: 'hw_stale'
+}
+
 // 告警类型配置（图标 / 颜色 / 筛选文案）
 const alertTypeMap = {
   occupied: { label: 'Occupied Timeout Alert', icon: 'clock-circle', color: '#fa541c' },
@@ -145,23 +182,31 @@ const pendingKindMap = {
   activation: 'Activation'
 }
 
+// 待审批 kind → 图标 / 颜色
+const pendingKindStyleMap = {
+  'Hardware Change': { icon: 'laptop', color: '#722ed1' },
+  'Forced Offline': { icon: 'poweroff', color: '#fa541c' },
+  'Activation': { icon: 'rocket', color: '#1890ff' },
+  'Unknown': { icon: 'question-circle', color: '#8c8c8c' }
+}
+
 export default {
   name: 'Home',
   data () {
     return {
       loading: true,
 
-      // 区域1：指标展示区（两行四列），link 为点击跳转的目标列表页及状态筛选
+      // 区域1：指标展示区（两行四列），key 对应 /host/stats 响应字段，link 为点击跳转的目标列表页及状态筛选
       metrics: [
-        { title: 'Total Hosts', value: 148, icon: 'database', color: '#1890ff', link: { path: '/available-host/list', query: { status: '' } } },
-        { title: 'Idle Hosts', value: 62, icon: 'check-circle', color: '#52c41a', link: { path: '/available-host/list', query: { status: 'Free' } } },
-        { title: 'Occupied Hosts', value: 45, icon: 'schedule', color: '#fa8c16', link: { path: '/available-host/list', query: { status: 'Occupied' } } },
-        { title: 'Offline Hosts', value: 28, icon: 'disconnect', color: '#ff4d4f', link: { path: '/available-host/list', query: { status: 'Offline' } } },
-        { title: 'Pending Hosts', value: 13, icon: 'audit', color: '#722ed1', link: { path: '/pending-host/list', query: { status: '' } } },
-        { title: 'Occupied Timeout Alerts', value: 3, icon: 'clock-circle', color: '#fa541c', link: { path: '/available-host/list', query: { status: 'Occupied' } } },
-        { title: 'Offline Timeout Alerts', value: 2, icon: 'exclamation-circle', color: '#f5222d', link: { path: '/available-host/list', query: { status: 'Offline' } } },
+        { key: 'total', title: 'Total Hosts', value: 0, icon: 'database', color: '#1890ff', link: { path: '/available-host/list', query: { status: '' } } },
+        { key: 'idle', title: 'Idle Hosts', value: 0, icon: 'check-circle', color: '#52c41a', link: { path: '/available-host/list', query: { status: 'Free' } } },
+        { key: 'occupied', title: 'Occupied Hosts', value: 0, icon: 'schedule', color: '#fa8c16', link: { path: '/available-host/list', query: { status: 'Occupied' } } },
+        { key: 'offline', title: 'Offline Hosts', value: 0, icon: 'disconnect', color: '#ff4d4f', link: { path: '/available-host/list', query: { status: 'Offline' } } },
+        { key: 'pending', title: 'Pending Hosts', value: 0, icon: 'audit', color: '#722ed1', link: { path: '/pending-host/list', query: { status: '' } } },
+        { key: 'occupied_timeout', title: 'Occupied Timeout Alerts', value: 0, icon: 'clock-circle', color: '#fa541c', link: { path: '/available-host/list', query: { status: 'Occupied' } } },
+        { key: 'offline_timeout', title: 'Offline Timeout Alerts', value: 0, icon: 'exclamation-circle', color: '#f5222d', link: { path: '/available-host/list', query: { status: 'Offline' } } },
         // 可用 HOST 无硬件更新对应状态，跳转后展示全部
-        { title: 'Hardware Update Timeout Alerts', value: 4, icon: 'laptop', color: '#d48806', link: { path: '/available-host/list', query: { status: '' } } }
+        { key: 'hardware_timeout', title: 'Hardware Update Timeout Alerts', value: 0, icon: 'laptop', color: '#d48806', link: { path: '/available-host/list', query: { status: '' } } }
       ],
 
       // 告警类型配置
@@ -176,36 +221,19 @@ export default {
       // 待审批筛选（all / hardware / offline）
       pendingFilter: 'all',
 
-      // 区域2：告警动态（每种状态仅一条示例数据，time 为事件时间，同时用作时间副标题）
-      alertList: [
-        {
-          type: 'occupied',
-          hostName: 'spa440-dev01',
-          usedBy: 'li.zhang@intel.com',
-          time: '2026-08-27 10:00:00',
-          occupyDur: '28h 05m'
-        },
-        {
-          type: 'offline',
-          hostName: 'spa330-edge02',
-          time: '2026-08-26 22:10:00',
-          offlineDur: '49h 20m'
-        },
-        {
-          type: 'hardware',
-          hostName: 'spa220-test',
-          time: '2026-08-21 08:45:00',
-          unsyncDur: '167h 05m'
-        }
-      ],
+      // 区域2：告警动态（服务端分页，触底加载下一页）
+      alertList: [],
+      alertPage: 1,
+      alertTotal: 0,
+      alertLoading: true,
+      loadingMoreAlerts: false,
 
-      // 右列：待审批动态（示例数据，time 为时间副标题）
-      pendingList: [
-        { hostName: 'spa300-run', time: '2026-08-28 10:12:00', kind: 'Hardware Change', icon: 'laptop', color: '#722ed1' },
-        { hostName: 'spa110-scale', time: '2026-08-27 16:40:00', kind: 'Forced Offline', icon: 'poweroff', color: '#fa541c' },
-        { hostName: 'spa220-mobl', time: '2026-08-27 09:05:00', kind: 'Hardware Change', icon: 'laptop', color: '#722ed1' },
-        { hostName: 'spa550-new01', time: '2026-08-28 14:30:00', kind: 'Activation', icon: 'rocket', color: '#1890ff' }
-      ]
+      // 右列：待审批动态（服务端分页，触底加载下一页）
+      pendingList: [],
+      pendingPage: 1,
+      pendingTotal: 0,
+      pendingLoading: true,
+      loadingMorePending: false
     }
   },
   computed: {
@@ -214,34 +242,185 @@ export default {
         ? this.alertTypeMap[this.alertFilter].label
         : 'All'
     },
-    filteredAlerts () {
-      if (this.alertFilter === 'all') {
-        return this.alertList
-      }
-      return this.alertList.filter(item => item.type === this.alertFilter)
-    },
     pendingFilterLabel () {
       return this.pendingKindMap[this.pendingFilter] || 'All'
     },
-    filteredPendingList () {
-      if (this.pendingFilter === 'all') {
-        return this.pendingList
-      }
-      const kind = this.pendingKindMap[this.pendingFilter]
-      return this.pendingList.filter(item => item.kind === kind)
+    // 告警列表是否还有下一页
+    alertHasMore () {
+      return this.alertList.length < this.alertTotal
+    },
+    // 待审批列表是否还有下一页
+    pendingHasMore () {
+      return this.pendingList.length < this.pendingTotal
     }
   },
   created () {
-    setTimeout(() => {
-      this.loading = false
-    }, 600)
+    this.fetchStats()
+    this.refreshAlerts()
+    this.refreshPending()
   },
   methods: {
+    // 看板统计（§2.1）
+    async fetchStats () {
+      try {
+        const data = (await stats()) || {}
+
+        this.metrics = this.metrics.map(m => ({
+          ...m,
+          value: data[m.key] !== undefined && data[m.key] !== null ? data[m.key] : m.value
+        }))
+      } catch (e) {
+        this.$message.error('加载 HOST 统计数据失败')
+      } finally {
+        this.loading = false
+      }
+    },
+    // 告警列表（§2.2，type=all/occupied/offline/hw_stale）
+    async fetchAlerts () {
+      try {
+        const data = (await alerts({
+          type: alertFilterTypeMap[this.alertFilter] || 'all',
+          page: this.alertPage,
+          page_size: PAGE_SIZE
+        })) || {}
+        const rows = (data.list || []).map(item => this.mapAlertItem(item))
+        this.alertList = this.alertPage === 1 ? rows : this.alertList.concat(rows)
+        this.alertTotal = data.total || 0
+        return true
+      } catch (e) {
+        // 加载更多失败时回退页码，便于下次触底重试
+        if (this.alertPage > 1) {
+          this.alertPage -= 1
+        }
+        this.$message.error('加载告警列表失败')
+        return false
+      }
+    },
+    // 待审批列表（§2.2，type=pending，kind 过滤）
+    async fetchPending () {
+      try {
+        const data = (await alerts({
+          type: 'pending',
+          kind: this.pendingFilter === 'all' ? undefined : pendingKindMap[this.pendingFilter],
+          page: this.pendingPage,
+          page_size: 20
+        })) || {}
+        const rows = (data.list || []).map(item => this.mapPendingItem(item))
+        this.pendingList = this.pendingPage === 1 ? rows : this.pendingList.concat(rows)
+        this.pendingTotal = data.total || 0
+        return true
+      } catch (e) {
+        // 加载更多失败时回退页码，便于下次触底重试
+        if (this.pendingPage > 1) {
+          this.pendingPage -= 1
+        }
+        this.$message.error('加载待审批列表失败')
+        return false
+      }
+    },
+    // 重置到第一页并重新拉取告警列表
+    refreshAlerts () {
+      this.alertPage = 1
+      this.alertLoading = true
+      return this.fetchAlerts().then(ok => {
+        if (!ok) {
+          this.alertList = []
+          this.alertTotal = 0
+        }
+      }).finally(() => {
+        this.alertLoading = false
+      })
+    },
+    // 重置到第一页并重新拉取待审批列表
+    refreshPending () {
+      this.pendingPage = 1
+      this.pendingLoading = true
+      return this.fetchPending().then(ok => {
+        if (!ok) {
+          this.pendingList = []
+          this.pendingTotal = 0
+        }
+      }).finally(() => {
+        this.pendingLoading = false
+      })
+    },
+    // 告警行映射：alert_type 归一化（hw_stale → hardware），duration_hours 格式化为 Xh YYm
+    mapAlertItem (item) {
+      const dur = this.formatDuration(item.duration_hours)
+      return {
+        type: item.alert_type === 'hw_stale' ? 'hardware' : item.alert_type,
+        hostName: item.hostname,
+        usedBy: item.used_by,
+        time: this.formatTime(item.since),
+        occupyDur: dur,
+        offlineDur: dur,
+        unsyncDur: dur
+      }
+    },
+    // 待审批行映射：kind 附带图标 / 颜色
+    mapPendingItem (item) {
+      return {
+        hostName: item.hostname,
+        time: this.formatTime(item.since),
+        kind: item.kind,
+        ...(pendingKindStyleMap[item.kind] || pendingKindStyleMap['Unknown'])
+      }
+    },
+    // ISO 时间 → YYYY-MM-DD HH:mm:ss
+    formatTime (value) {
+      return value ? moment(value).format('YYYY-MM-DD HH:mm:ss') : '-'
+    },
+    // 小时数（2 位小数）→ Xh YYm
+    formatDuration (hours) {
+      if (hours === null || hours === undefined) {
+        return '-'
+      }
+      const totalMinutes = Math.round(Number(hours) * 60)
+      const h = Math.floor(totalMinutes / 60)
+      const m = totalMinutes % 60
+      return `${h}h ${String(m).padStart(2, '0')}m`
+    },
     onAlertFilter ({ key }) {
+      if (this.alertFilter === key) {
+        return
+      }
       this.alertFilter = key
+      this.refreshAlerts()
     },
     onPendingFilter ({ key }) {
+      if (this.pendingFilter === key) {
+        return
+      }
       this.pendingFilter = key
+      this.refreshPending()
+    },
+    // 告警列表触底加载下一页
+    onAlertScroll (e) {
+      const el = e.target
+      if (!el || this.loadingMoreAlerts || !this.alertHasMore) {
+        return
+      }
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 24) {
+        this.alertPage += 1
+        this.loadingMoreAlerts = true
+        this.fetchAlerts().finally(() => {
+          this.loadingMoreAlerts = false
+        })
+      }
+    },
+    // 待审批列表触底加载下一页
+    onPendingScroll (e) {
+      const el = e.target
+      if (!el || this.loadingMorePending || !this.pendingHasMore) {
+        return
+      }
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 24) {
+        this.pendingPage += 1
+        this.loadingMorePending = true
+        this.fetchPending().finally(() => {
+          this.loadingMorePending = false
+        })
+      }
     },
     // 点击指标卡跳转对应 Host 列表页，携带状态筛选参数
     handleMetricClick (m) {
@@ -331,6 +510,7 @@ export default {
 }
 
 .metric-card {
+  height: auto !important;
   /deep/ .ant-row > .ant-col:not(:nth-child(4n + 1)) .metric-cell {
     border-left: 1px solid #f0f0f0;
   }
@@ -357,6 +537,39 @@ export default {
 .alert-desc {
   color: rgba(0, 0, 0, 0.45);
   font-size: 12px;
+}
+
+.alert-list-scroll{
+  max-height: calc(100vh - 600px);
+  overflow-y: auto;
+}
+
+/* 列表滚动容器：超过最大高度出现滚动条，触底加载下一页 */
+.list-scroll {
+  max-height: calc(100vh - 320px);
+  overflow-y: auto;
+}
+
+/* 触底加载更多指示 */
+.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0 16px;
+
+  span {
+    margin-left: 8px;
+    color: rgba(0, 0, 0, 0.45);
+    font-size: 12px;
+  }
+}
+
+/* 已加载全部数据提示 */
+.loaded-all {
+  text-align: center;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  padding: 8px 0 16px;
 }
 
 /* 动态内容高亮标记：使用人 / hostname / 时间均为蓝色，超时时长为红色 */

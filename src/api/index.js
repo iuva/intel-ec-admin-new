@@ -34,6 +34,7 @@ export const refreshToken = (refreshToken, token) => {
   })
 }
 
+
 // Get available hosts list - queries available hosts with pagination
 // Query parameters: page, page_size, mac, username, host_state, mg_id, use_by
 // Response: { data: { hosts: [...], total: number }, message: string }
