@@ -26,7 +26,7 @@ const defaultRoutePath = '/home'
 export const ROLE_CONFIG = {
   // Admin：全部页面 + 全部按钮
   Admin: {
-    pages: ['home', 'table', 'account-management'],
+    pages: ['home', 'table', 'account-management', 'alert-config'],
     actions: ['*']
   },
   // Lab Tech：账号管理不可见；主机可操作，无删除/修改密码

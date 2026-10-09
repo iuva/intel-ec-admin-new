@@ -18,6 +18,7 @@ export default {
     'menu.pending-host': 'Pending HOST',
     'menu.account-management': 'Account Management',
     'menu.ota-management': 'OTA Management',
+    'menu.alert-config': 'Alert Config',
     'menu.list': 'List',
     'menu.list.table-list': 'Search Table',
     'menu.list.basic-list': 'Basic List',

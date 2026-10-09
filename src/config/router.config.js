@@ -85,6 +85,15 @@ export const asyncRouterMap = [
         component: () => import('@/views/ota/OtaManagement'),
         meta: { title: 'menu.ota-management', keepAlive: true, icon: 'cloud-upload', permission: ['table'] }
       },
+      // Alert Config（告警阈值配置）
+      // 权限标识 alert-config 仅 Admin 角色拥有，菜单入口只对 Admin 显示；
+      // 页面 PUT 接口本身也是 admin only（见 ec-api-contract-detail.md §2.3）
+      {
+        path: '/alert-config',
+        name: 'AlertConfig',
+        component: () => import('@/views/alert-config/AlertConfig'),
+        meta: { title: 'menu.alert-config', keepAlive: true, icon: 'bell', permission: ['alert-config'] }
+      },
       // Account Management（账号管理）
       // 用 RouteView 包装一层（与 /available-host 同模式）：详情页 matched 达到 3 层，
       // pro-layout 才能在 meta.hidden 时高亮父级菜单 /account-management

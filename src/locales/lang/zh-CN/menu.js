@@ -17,6 +17,7 @@ export default {
     'menu.pending-host': 'Pending HOST',
     'menu.account-management': 'Account Management',
     'menu.ota-management': 'OTA Management',
+    'menu.alert-config': 'Alert Config',
     'menu.list': '列表页',
     'menu.list.table-list': '查询表格',
     'menu.list.basic-list': '标准列表',
