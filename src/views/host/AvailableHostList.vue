@@ -17,18 +17,21 @@
             </a-col>
             <a-col :md="8" :sm="24">
               <a-form-item label="Status">
-                <a-select v-model="queryParam.status" placeholder="Please select">
+                <!-- 变量名以接口文档 §3.1 为准：host_state（int 0..4，空串=All 不下发） -->
+                <a-select v-model="queryParam.host_state" placeholder="Please select">
                   <a-select-option value="">All</a-select-option>
-                  <a-select-option value="Free">Free</a-select-option>
-                  <a-select-option value="Occupied">Occupied</a-select-option>
-                  <a-select-option value="Running">Running</a-select-option>
-                  <a-select-option value="Offline">Offline</a-select-option>
+                  <a-select-option :value="0">Free</a-select-option>
+                  <a-select-option :value="1">Locked</a-select-option>
+                  <a-select-option :value="2">Occupied</a-select-option>
+                  <a-select-option :value="3">Running</a-select-option>
+                  <a-select-option :value="4">Offline</a-select-option>
                 </a-select>
               </a-form-item>
             </a-col>
             <a-col :md="8" :sm="24">
               <a-form-item label="User">
-                <a-input v-model="queryParam.user" placeholder="Enter User" />
+                <!-- 占用者模糊过滤，变量名以接口文档 §3.1 为准 -->
+                <a-input v-model="queryParam.use_by" placeholder="Enter User" />
               </a-form-item>
             </a-col>
             <template v-if="advanced">
@@ -39,7 +42,7 @@
               </a-col>
               <a-col :md="8" :sm="24">
                 <a-form-item label="MachineGuid">
-                  <a-input v-model="queryParam.machineGuid" placeholder="Enter MachineGuid" />
+                  <a-input v-model="queryParam.mg_id" placeholder="Enter MachineGuid" />
                 </a-form-item>
               </a-col>
             </template>
@@ -60,7 +63,7 @@
       <s-table
         ref="table"
         size="default"
-        rowKey="hostname"
+        rowKey="host_id"
         :columns="columns"
         :data="fetchEnabledList"
         :dataAfter="hostListRes"
@@ -81,7 +84,7 @@
           <a-divider v-action:host:offline type="vertical" />
           <a
             v-action:host:offline
-            :class="{ 'disabled-link': record.status === 'Offline' }"
+            :class="{ 'disabled-link': record.host_state === 4 }"
             @click="handleOffline(record)"
           >Go Offline</a>
           <a-divider v-action:host:delete type="vertical" />
@@ -93,10 +96,22 @@
 </template>
 
 <script>
+import moment from 'moment'
 import { STable, Ellipsis } from '@/components'
-import { fetchEnabledList } from '@/api/host'
+import { fetchEnabledList, deactivateHost, forceOfflineHost, deleteEnabledHost } from '@/api/host'
 import { stateDict } from '@/store/dict'
 
+// 占用起始时间 → 距今时长（Xh YYm），口径参考 Home.vue formatDuration
+const formatDuration = since => {
+  if (!since) return '-'
+  const minutes = Math.max(0, moment().diff(moment(since), 'minutes'))
+  return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, '0')}m`
+}
+
+// 业务错误提示：优先展示服务端 message（如 409 FORCE_OFFLINE_APPR_EXISTS）
+const getErrMsg = (e, fallback) => (e && e.response && e.response.data && e.response.data.message) || fallback
+
+// 列表行字段以接口文档 §3.1 为准（host_id/host_no/host_ip/host_state/use_by/occupied_since...）
 const columns = [
   {
     title: 'Host ID',
@@ -104,11 +119,11 @@ const columns = [
   },
   {
     title: 'Hostname',
-    dataIndex: 'hostname'
+    dataIndex: 'host_no'
   },
   {
     title: 'IP',
-    dataIndex: 'ip'
+    dataIndex: 'host_ip'
   },
   {
     title: 'Status',
@@ -117,15 +132,27 @@ const columns = [
   },
   {
     title: 'User',
-    dataIndex: 'username',
-    // 仅 Occupied / Running 状态有使用者，其它状态显示「-」
-    customRender: (text, record) => (record.status === 'Occupied' || record.status === 'Running' ? text : '-')
+    dataIndex: 'use_by',
+    // 占用者为空（未被占用）时显示「-」
+    customRender: text => text || '-'
+  },
+  {
+    title: 'MAC',
+    dataIndex: 'mac',
+    // 占用者为空（未被占用）时显示「-」
+    customRender: text => text || '-'
+  },
+  {
+    title: 'Machine Guid',
+    dataIndex: 'mg_id',
+    // 占用者为空（未被占用）时显示「-」
+    customRender: text => text || '-'
   },
   {
     title: 'Occupied Duration',
-    dataIndex: 'duration',
-    // 仅 Occupied / Running 状态有人使用才计时长，其它状态显示「-」
-    customRender: (text, record) => (record.status === 'Occupied' || record.status === 'Running' ? (text || '-') : '-')
+    dataIndex: 'occupied_since',
+    // 仅 state 1/2/3 有占用起始（孤儿日志守卫），前端 now - occupied_since 计算时长，其它状态显示「-」
+    customRender: text => (text ? formatDuration(text) : '-')
   },
   {
     title: 'Action',
@@ -139,17 +166,6 @@ const columns = [
 ]
 
 
-// 模拟数据，后续接入后端接口时替换
-// 仅 Occupied / Running 状态有使用者、tc_id、占用时间和占用时长，
-// 其它状态无人使用（user/tcId/occupiedAt/duration 为空，列表和详情页渲染为「-」）
-const mockData = [
-  { id: 'HOST-001', hostname: 'PC-ZHANGSAN', ip: '192.168.1.101', mac: '00:1A:2B:3C:4D:5E', machineGuid: 'MG-7f3a-001', user: '', tcId: '', occupiedAt: '', status: 'Free', duration: '', lastActive: '2026-08-28 10:00:00' },
-  { id: 'HOST-002', hostname: 'PC-LISI', ip: '192.168.1.102', mac: '00:1A:2B:3C:4D:5F', machineGuid: 'MG-7f3a-002', user: 'lisi@company.com', tcId: 'TC-EXEC-006-013', occupiedAt: '2026-08-28 10:12', status: 'Occupied', duration: '51h23m', lastActive: '2026-08-28 10:12:00' },
-  { id: 'HOST-003', hostname: 'PC-WANGWU', ip: '192.168.1.103', mac: '00:1A:2B:3C:4D:60', machineGuid: 'MG-7f3a-003', user: 'wangwu@company.com', tcId: 'TC-EXEC-006-001', occupiedAt: '2026-08-28 09:45', status: 'Running', duration: '5h42m', lastActive: '2026-08-28 09:45:00' },
-  { id: 'HOST-004', hostname: 'PC-ZHAOLIU', ip: '192.168.1.104', mac: '00:1A:2B:3C:4D:61', machineGuid: 'MG-7f3a-004', user: '', tcId: '', occupiedAt: '', status: 'Offline', duration: '', lastActive: '2026-08-27 18:30:00' },
-  { id: 'HOST-005', hostname: 'PC-SUNQI', ip: '192.168.1.105', mac: '00:1A:2B:3C:4D:62', machineGuid: 'MG-7f3a-005', user: '', tcId: '', occupiedAt: '', status: 'Free', duration: '', lastActive: '2026-08-28 11:02:00' }
-]
-
 export default {
   name: 'AvailableHostList',
   components: {
@@ -161,40 +177,18 @@ export default {
     return {
       // 高级搜索 展开/关闭
       advanced: false,
-      // 查询参数
+      // 查询参数（变量名以接口文档 §3.1 为准）
       queryParam: {},
-      fetchEnabledList,
-      // 加载数据方法 必须为 Promise 对象
-      loadData: parameter => {
-        const requestParameters = Object.assign({}, parameter, this.queryParam)
-        // TODO: 替换为后端接口，如 getAvailableHostList(requestParameters)
-        const filtered = mockData.filter(item => {
-          return (!requestParameters.hostname || item.hostname.toLowerCase().includes(requestParameters.hostname.toLowerCase())) &&
-            (!requestParameters.ip || item.ip.toLowerCase().includes(requestParameters.ip.toLowerCase())) &&
-            (!requestParameters.status || item.status === requestParameters.status) &&
-            (!requestParameters.user || item.user.toLowerCase().includes(requestParameters.user.toLowerCase())) &&
-            (!requestParameters.mac || item.mac.toLowerCase().includes(requestParameters.mac.toLowerCase())) &&
-            (!requestParameters.machineGuid || item.machineGuid.toLowerCase().includes(requestParameters.machineGuid.toLowerCase()))
-        })
-        return new Promise(resolve => {
-          resolve({
-            pageSize: parameter.pageSize || 10,
-            pageNo: parameter.pageNo || 1,
-            totalCount: filtered.length,
-            totalPage: Math.ceil(filtered.length / (parameter.pageSize || 10)),
-            data: filtered
-          })
-        })
-      }
+      fetchEnabledList
     }
   },
   created () {
-    // 从 Dashboard 指标卡跳转进入时，按 URL query 自动筛选状态
-    this.applyRouteStatus()
+    // 从首页等页面跳转进入时，解析 URL query 中的搜索条件并回显
+    this.applyRouteQuery()
   },
   activated () {
-    // keepAlive 页面再次从 Dashboard 带状态进入时，重新应用筛选并刷新
-    this.applyRouteStatus()
+    // keepAlive 页面再次带条件进入时，重新应用筛选并刷新
+    this.applyRouteQuery()
   },
   filters: {
     statusFilter (type) {
@@ -205,23 +199,44 @@ export default {
     }
   },
   methods: {
-    // 应用 URL query 中的状态筛选（仅当 query 带 status 参数时生效）
-    applyRouteStatus () {
-      const status = this.$route.query.status
-      if (status === undefined || status === this.queryParam.status) {
-        return
-      }
-      this.$set(this.queryParam, 'status', status)
+    // 解析 URL query 携带的搜索条件（参数名与搜索框变量一致，以接口文档 §3.1 为准），回显且按条件加载
+    applyRouteQuery () {
+      const query = this.$route.query
+      const keys = ['hostname', 'ip', 'host_state', 'use_by', 'mac', 'mg_id']
+      let changed = false
+      keys.forEach(key => {
+        if (query[key] === undefined) {
+          return
+        }
+        // host_state 契约为 int；URL 携带为字符串需转数字（空串=All 保持原样）
+        const val = key === 'host_state' && query[key] !== '' ? Number(query[key]) : query[key]
+        if (this.queryParam[key] !== val) {
+          this.$set(this.queryParam, key, val)
+          changed = true
+        }
+      })
       // 首次进入时 s-table 未挂载，由初始加载读取 queryParam；keepAlive 再次进入时手动刷新
-      if (this.$refs.table) {
+      if (changed && this.$refs.table) {
         this.$refs.table.refresh(true)
       }
     },
+    // 请求前参数处理：s-table 通用分页参数转换为契约分页参数，并剔除空值搜索条件
     hostListReq (params) {
-      // Object.assign(params, this.queryParam)
+      params.page = params.pageNo
+      params.page_size = params.pageSize
+      delete params.pageNo
+      delete params.pageSize
+      Object.keys(params).forEach(key => {
+        if (params[key] === '' || params[key] === undefined || params[key] === null) {
+          delete params[key]
+        }
+      })
+      // host_state 按契约为 int（0..4），URL 回显/下拉混合来源统一转数字
+      if (params.host_state !== undefined) {
+        params.host_state = Number(params.host_state)
+      }
     },
     hostListRes (res) {
-      console.log('hostListRes', res)
       return {
         pageNo: res.data.page,
         totalCount: res.data.total,
@@ -236,23 +251,22 @@ export default {
       this.$refs.table.refresh(true)
     },
     // 跳转到 Host 详情页（/available-host/detail），携带 Host 信息供详情页展示
+    // 参数名与接口文档字段一致，详情页按同名解析
     handleView (record) {
       this.$router.push({
         path: '/available-host/detail',
         query: {
-          id: record.id,
-          hostname: record.hostname,
-          ip: record.ip,
+          host_id: record.host_id,
+          host_no: record.host_no,
+          host_ip: record.host_ip,
           mac: record.mac,
-          machineGuid: record.machineGuid,
-          status: record.status,
+          mg_id: record.mg_id,
+          host_state: record.host_state,
           // 使用信息：详情页 Usage Information 区域展示
-          user: record.user,
-          tcId: record.tcId,
-          occupiedAt: record.occupiedAt,
-          duration: record.duration,
-          // 最近连接时间取 lastActive，截取到分钟（YYYY-MM-DD HH:mm）
-          lastConnected: record.lastActive ? record.lastActive.slice(0, 16) : ''
+          use_by: record.use_by,
+          occupied_since: record.occupied_since,
+          // 占用时长由前端按 occupied_since 计算
+          duration: formatDuration(record.occupied_since)
         }
       })
     },
@@ -261,27 +275,39 @@ export default {
       this.$confirm({
         title: 'Disable Host',
         // 询问是否禁用 + 说明禁用后果（进入 Pending HOST）
-        content: `Are you sure you want to disable Host ${record.hostname} (${record.ip})? After being disabled, the Host will be moved to Pending HOST.`,
+        content: `Are you sure you want to disable Host ${record.host_no} (${record.host_ip})? After being disabled, the Host will be moved to Pending HOST.`,
         onOk () {
-          // TODO: 调用后端禁用接口
-          that.$message.success(`Host ${record.hostname} has been disabled`)
-          that.$refs.table.refresh()
+          // 停用主机（§3.2：PUT /host/disable）
+          deactivateHost({ host_id: record.host_id }).then(() => {
+            that.$message.success(`Host ${record.host_no} has been disabled`)
+            that.$refs.table.refresh()
+          }).catch(e => {
+            that.$message.error(getErrMsg(e, `Failed to disable Host ${record.host_no}`))
+          })
         }
       })
     },
     handleOffline (record) {
-      // 已 Offline 的 Host 禁止再次下线
-      if (record.status === 'Offline') return
+      // 已 Offline（host_state=4）的 Host 禁止再次下线
+      if (record.host_state === 4) return
       const that = this
       this.$confirm({
         title: 'Go Offline',
         // 下发离线通知，Host 收到后进行初始化
-        content: `Are you sure to send an offline notification to Host ${record.hostname} (${record.ip})? Once the notification is sent, the host will be initialized.`,
+        content: `Are you sure to send an offline notification to Host ${record.host_no} (${record.host_ip})? Once the notification is sent, the host will be initialized.`,
         okText: 'Send Notification',
         onOk () {
-          // TODO: 调用后端下发离线通知接口
-          that.$message.success(`Offline notification has been sent to Host ${record.hostname}`)
-          that.$refs.table.refresh()
+          // 强制下线（§3.2 C4 分叉）：FREE 态直接置 Offline；非 FREE 态转为审批申请进 Pending Approvals
+          forceOfflineHost({ host_id: record.host_id }).then(res => {
+            if (res.data && res.data.state === 'pending_approval') {
+              that.$message.success(`A forced-offline approval request has been submitted for Host ${record.host_no}`)
+            } else {
+              that.$message.success(`Offline notification has been sent to Host ${record.host_no}`)
+            }
+            that.$refs.table.refresh()
+          }).catch(e => {
+            that.$message.error(getErrMsg(e, `Failed to send offline notification to Host ${record.host_no}`))
+          })
         }
       })
     },
@@ -289,12 +315,16 @@ export default {
       const that = this
       this.$confirm({
         title: 'Delete Host',
-        content: `Are you sure to delete Host ${record.hostname} (${record.ip})? This cannot be undone!`,
+        content: `Are you sure to delete Host ${record.host_no} (${record.host_ip})? This cannot be undone!`,
         okType: 'danger',
         onOk () {
-          // TODO: 调用后端删除接口
-          that.$message.success(`Host ${record.hostname} has been deleted`)
-          that.$refs.table.refresh()
+          // 删除主机（§3.2：DELETE /host/{host_id}，逻辑删除）
+          deleteEnabledHost(record.host_id).then(() => {
+            that.$message.success(`Host ${record.host_no} has been deleted`)
+            that.$refs.table.refresh()
+          }).catch(e => {
+            that.$message.error(getErrMsg(e, `Failed to delete Host ${record.host_no}`))
+          })
         }
       })
     }
