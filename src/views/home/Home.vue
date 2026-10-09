@@ -351,6 +351,8 @@ export default {
       const dur = this.formatDuration(item.duration_hours)
       return {
         type: item.alert_type === 'hw_stale' ? 'hardware' : item.alert_type,
+        // 详情页路由唯一且必须参数
+        hostId: item.host_id,
         hostName: item.hostname,
         usedBy: item.used_by,
         time: this.formatTime(item.since),
@@ -431,12 +433,12 @@ export default {
       }
       this.$router.push({ path: m.link.path, query: m.link.query })
     },
-    // 点击告警中的 hostname，跳转对应 Host 详情页（携带 host_no 供详情页展示）
+    // 点击告警中的 hostname，跳转对应 Host 详情页（路由唯一且必须携带 host_id，详情由接口拉取）
     handleHostClick (item) {
       this.$router.push({
         path: '/available-host/detail',
         query: {
-          host_no: item.hostName
+          host_id: item.hostId
         }
       })
     },

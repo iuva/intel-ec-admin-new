@@ -1,15 +1,5 @@
 import request from '../utils/request'
 
-// Fetch pending approval hosts list - retrieves hosts awaiting admin approval
-// Query parameters: page, page_size, mac, mg_id, host_state
-// Response: { data: { hosts: [...], total: number }, message: string }
-export const fetchPendingList = (params) => {
-  return request({
-    url: '/api/v1/host/admin/appr-host/list',
-    method: 'get',
-    params
-  })
-}
 
 // Fetch enabled hosts list - retrieves hosts that are currently enabled and available
 // Query parameters: page, page_size, mac, username, host_state, mg_id, use_by
@@ -22,75 +12,24 @@ export const fetchEnabledList = (params) => {
   })
 }
 
-// Maintain email configuration - sets the maintenance notification email
-// Request body: { conf_val: string } - email address for notifications
-// Response: { message: string }
-export const maintainEmail = (data) => {
-  return request({
-    url: '/api/v1/host/admin/appr-host/maintain-email',
-    method: 'post',
-    data
-  })
-}
-
-// Fetch maintain email configuration - retrieves the current maintenance notification email
-// Response: { data: { conf_val: string }, message: string }
-export const fetchMaintainEmail = (params) => {
-  return request({
-    url: '/api/v1/host/admin/appr-host/maintain-email',
-    method: 'get',
-    params
-  })
-}
-
-// Fetch enabled host detail - retrieves detailed information for an enabled host
-// Query parameter: host_id
-// Response: { data: { host_details }, message: string }
-export const fetchEnabledHostDetail = (params) => {
-  return request({
-    url: '/api/v1/host/admin/host/detail',
-    method: 'get',
-    params
-  })
-}
-// Fetch pending host detail - retrieves detailed information for a pending approval host
-// Query parameter: host_id
-// Response: { data: { host_details }, message: string }
-export const fetchPendingHostDetail = (params) => {
-  return request({
-    url: '/api/v1/host/admin/appr-host/detail',
-    method: 'get',
-    params
-  })
-}
-
-// Fetch host execution logs - retrieves execution logs for a specific host
-// Query parameters: host_id, page, page_size
-// Response: { data: { logs: [...], total: number }, message: string }
-export const fetchLogs = (params) => {
-  return request({
-    url: '/api/v1/host/admin/host/exec-logs',
-    method: 'get',
-    params
-  })
-}
-// Activate host - approves and enables pending approval hosts
-// Request body: { diff_type: number, host_ids: array } - specifies activation type and host IDs
-// Response: { data: { results: [...] }, message: string }
-export const activateHost = (data) => {
-  return request({
-    url: '/api/v1/host/admin/appr-host/approve',
-    method: 'post',
-    data
-  })
-}
-
 // Deactivate host - disables a host (sets appr_state=0)
 // Request body: { host_id: string } - ID of the host to disable
 // Response: { message: string }
 export const deactivateHost = (data) => {
   return request({
     url: '/api/v1/host/admin/host/disable',
+    method: 'put',
+    data
+  })
+}
+
+// Enable host - re-enables a disabled host (sets appr_state=1)
+// NOTE: 契约 §3.2：停用/启用共用 PUT /host/disable，由后端按当前 appr_state 切换
+// Request body: { host_id: string } - ID of the host to enable
+// Response: { message: string }
+export const enableHost = (data) => {
+  return request({
+    url: '/api/v1/host/admin/host/enable',
     method: 'put',
     data
   })
@@ -118,6 +57,28 @@ export const deleteEnabledHost = (id) => {
   })
 }
 
+// Fetch enabled host detail - retrieves detailed information for an enabled host
+// Query parameter: host_id
+// Response: { data: { host_details }, message: string }
+export const fetchEnabledHostDetail = (params) => {
+  return request({
+    url: '/api/v1/host/admin/host/detail',
+    method: 'get',
+    params
+  })
+}
+
+// Fetch host execution logs - retrieves execution logs for a specific host
+// Query parameters: host_id, page, page_size
+// Response: { data: { logs: [...], total: number }, message: string }
+export const fetchLogs = (params) => {
+  return request({
+    url: '/api/v1/host/admin/host/exec-logs',
+    method: 'get',
+    params
+  })
+}
+
 // Modify host password - updates the password for a specific host (stored encrypted with AES)
 // Request body: { host_id: string, password: string } - ID and new password for the host
 // Response: { message: string }
@@ -126,7 +87,7 @@ export const modifyHostPassword = (hostId, password) => {
     url: `/api/v1/host/admin/host/password`,
     method: 'put',
     data: {
-      hostId,
+      host_id: hostId,
       password
     }
   })

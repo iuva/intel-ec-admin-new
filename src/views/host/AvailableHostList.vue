@@ -79,7 +79,8 @@
           <a @click="handleView(record)">View</a>
           <!-- 按钮权限：v-action 配置见 src/permission.js -> ROLE_CONFIG[role].actions -->
           <a-divider v-action:host:disable type="vertical" />
-          <a v-action:host:disable @click="handleDisable(record)">Disable</a>
+          <!-- 停用/启用互切：appr_state=0 已停用显示 Enable（契约 §3.2：停用/启用共用 PUT /host/disable） -->
+          <a v-action:host:disable @click="handleDisable(record)">{{ record.appr_state === 0 ? 'Enable' : 'Disable' }}</a>
           <!-- 已 Offline 的 Host 不允许再次下线，禁用 Go Offline -->
           <a-divider v-action:host:offline type="vertical" />
           <a
@@ -98,7 +99,7 @@
 <script>
 import moment from 'moment'
 import { STable, Ellipsis } from '@/components'
-import { fetchEnabledList, deactivateHost, forceOfflineHost, deleteEnabledHost } from '@/api/host'
+import { fetchEnabledList, deactivateHost, enableHost, forceOfflineHost, deleteEnabledHost } from '@/api/host'
 import { stateDict } from '@/store/dict'
 
 // 占用起始时间 → 距今时长（Xh YYm），口径参考 Home.vue formatDuration
@@ -250,27 +251,22 @@ export default {
       this.queryParam = {}
       this.$refs.table.refresh(true)
     },
-    // 跳转到 Host 详情页（/available-host/detail），携带 Host 信息供详情页展示
-    // 参数名与接口文档字段一致，详情页按同名解析
+    // 跳转到 Host 详情页（/available-host/detail）
+    // 详情页路由唯一且必须携带 host_id，其余信息均由详情接口按 host_id 拉取
     handleView (record) {
       this.$router.push({
         path: '/available-host/detail',
         query: {
-          host_id: record.host_id,
-          host_no: record.host_no,
-          host_ip: record.host_ip,
-          mac: record.mac,
-          mg_id: record.mg_id,
-          host_state: record.host_state,
-          // 使用信息：详情页 Usage Information 区域展示
-          use_by: record.use_by,
-          occupied_since: record.occupied_since,
-          // 占用时长由前端按 occupied_since 计算
-          duration: formatDuration(record.occupied_since)
+          host_id: record.host_id
         }
       })
     },
+    // 停用/启用互切：appr_state=0 为已停用，此时执行启用，否则执行停用（契约 §3.2）
     handleDisable (record) {
+      if (record.appr_state === 0) {
+        this.handleEnable(record)
+        return
+      }
       const that = this
       this.$confirm({
         title: 'Disable Host',
@@ -283,6 +279,22 @@ export default {
             that.$refs.table.refresh()
           }).catch(e => {
             that.$message.error(getErrMsg(e, `Failed to disable Host ${record.host_no}`))
+          })
+        }
+      })
+    },
+    // 启用已停用的 Host（§3.2：停用/启用共用 PUT /host/disable，启用后回到可用主机池）
+    handleEnable (record) {
+      const that = this
+      this.$confirm({
+        title: 'Enable Host',
+        content: `Are you sure you want to enable Host ${record.host_no} (${record.host_ip})? The Host will be restored to the Available HOST pool.`,
+        onOk () {
+          enableHost({ host_id: record.host_id }).then(() => {
+            that.$message.success(`Host ${record.host_no} has been enabled`)
+            that.$refs.table.refresh()
+          }).catch(e => {
+            that.$message.error(getErrMsg(e, `Failed to enable Host ${record.host_no}`))
           })
         }
       })
