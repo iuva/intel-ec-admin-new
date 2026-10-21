@@ -7,22 +7,23 @@
     <a-card :bordered="false">
       <a-tabs v-model="activeTab">
         <!-- 新增版本：与 tab 标题平齐，显示在右侧 -->
-        <a-button slot="tabBarExtraContent" type="primary" @click="openAddModal">New Version</a-button>
+        <a-button slot="tabBarExtraContent" type="primary" @click="openAddModal" v-action:ota:new >New Version</a-button>
         <a-tab-pane v-for="sys in systems" :key="sys.key">
           <span slot="tab">
             <a-icon :type="sys.icon" />
             {{ sys.key }}
           </span>
           <div class="ota-layout">
-            <!-- 左侧：部署记录表格，支持滚动翻页，单击行切换右侧详情 -->
+            <!-- 左侧：版本列表（服务端数据，当前版本行高亮） -->
             <div class="record-table">
               <a-table
-                row-key="id"
+                :row-key="record => (record.id != null ? record.id : record.version)"
                 :columns="columns"
-                :data-source="sys.records"
+                :data-source="activeReleases"
+                :loading="releaseLoading"
                 :pagination="{ pageSize: 10, size: 'small' }"
                 :scroll="{ y: 450 }"
-                :custom-row="record => tableRowProps(sys, record)"
+                :row-class-name="record => (record.current ? 'is-current-row' : '')"
               >
                 <template slot="current" slot-scope="text, row">
                   <a-tag v-if="text" color="green">Current</a-tag>
@@ -32,7 +33,8 @@
                     type="primary"
                     size="small"
                     class="publish-cell-btn"
-                    @click.stop="handlePublish(sys, row)"
+                    v-action:ota:push
+                    @click="handlePublish(row)"
                   >
                     Publish
                   </a-button>
@@ -42,53 +44,49 @@
                 </template>
               </a-table>
             </div>
-            <!-- 右侧：当前条目推送详情 -->
+            <!-- 右侧：当前版本推送详情（契约 §5：接口只返回最近一次推送版本，用户定稿只展示当前版本） -->
             <div class="record-detail">
-              <template v-if="getActiveRecord(sys)">
+              <template v-if="activeResult">
                 <div class="detail-title">
-                  <span>{{ getActiveRecord(sys).version }} Push Details</span>
+                  <span>{{ activeResult.version }} Push Details</span>
                 </div>
                 <!-- 概览数量 -->
                 <div class="summary-grid">
                   <div v-for="stat in summaryFields" :key="stat.label" class="summary-item" :class="stat.type">
-                    <div class="summary-value">{{ stat.calc(getActiveRecord(sys)) }}</div>
+                    <div class="summary-value">{{ stat.calc(activeResult.stats) }}</div>
                     <div class="summary-label">{{ stat.label }}</div>
                   </div>
                 </div>
-                <!-- 失败明细：推送失败 / 下载失败 / 安装失败，悬停展示异常信息，支持重新推送 -->
+                <!-- 失败明细：retry=true 的行可定向重推 -->
                 <a-table
-                  row-key="id"
+                  row-key="host_id"
                   class="host-table"
-                  :columns="getHostColumns(getActiveRecord(sys))"
-                  :data-source="getActiveRecord(sys).failedHosts"
+                  :columns="failedColumns"
+                  :data-source="activeResult.hosts || []"
+                  :loading="resultLoading"
                   :pagination="{ pageSize: 5, size: 'small' }"
                 >
-                  <template slot="type" slot-scope="text, row">
-                    <a-tooltip placement="top" :title="row.errorMsg">
-                      <a-tag v-if="text === 'push'" color="red">Push Failed</a-tag>
-                      <a-tag v-else-if="text === 'download'" color="orange">Download Failed</a-tag>
-                      <a-tag v-else color="gold">Install Failed</a-tag>
-                    </a-tooltip>
+                  <template slot="state" slot-scope="text">
+                    <a-tag :color="stateColor(text)">{{ text }}</a-tag>
                   </template>
                   <template slot="action" slot-scope="text, row">
-                    <a-tooltip placement="top" :title="`Re-push to ${text}`">
-                      <a-button type="link" size="small" @click="handleRetry(getActiveRecord(sys), row)">
-                        Retry
-                      </a-button>
-                    </a-tooltip>
+                    <a-button v-if="row.retryable" type="link" size="small" @click="handleRetry(row)" v-action:ota:retry>
+                      Retry
+                    </a-button>
                   </template>
                 </a-table>
               </template>
-              <a-empty v-else description="Please select a record" />
+              <a-empty v-else description="No push records yet" />
             </div>
           </div>
         </a-tab-pane>
       </a-tabs>
 
-      <!-- 新增版本弹窗 -->
+      <!-- 新增版本弹窗：仅选择安装包，版本号与 MD5 由服务端解析 -->
       <a-modal
         title="New Version"
         :visible="addModal.visible"
+        :confirm-loading="addModal.uploading"
         @ok="handleAddSubmit"
         @cancel="addModal.visible = false"
       >
@@ -105,227 +103,187 @@
 </template>
 
 <script>
-// mock：各失败类型的示例异常信息
-const MOCK_ERROR_MESSAGES = {
-  push: [
-    'Device offline',
-    'Connection timeout',
-    'Network unreachable'
-  ],
-  download: [
-    'Checksum mismatch',
-    'Download timed out',
-    'Insufficient storage'
-  ],
-  install: [
-    'Install script exited with code 1',
-    'Version verification failed',
-    'Incompatible device firmware'
-  ]
-}
+import { fetchReleases, fetchDeployResult, deploy, upload } from '@/api/ota'
+
+const getErrMsg = (e, fallback) => (e && e.response && e.response.data && e.response.data.message) || fallback
 
 export default {
   name: 'OtaManagement',
   data () {
     return {
       activeTab: 'agent',
-      // 记录表格列
-      columns: [
-        { title: 'Version', dataIndex: 'version', width: 80 },
-        { title: 'Installation Package', dataIndex: 'fileName', width: 160 },
-        { title: 'MD5', dataIndex: 'md5', scopedSlots: { customRender: 'md5' } },
-        { title: 'Current', dataIndex: 'current', width: 160, align: 'center', scopedSlots: { customRender: 'current' } }
-      ],
-      // 概览数量字段：升级失败数含推送失败与设备下载失败
-      summaryFields: [
-        { label: 'To Upgrade', type: 'blue', calc: record => record.stats.needPush },
-        { label: 'Upgraded', type: 'green', calc: record => record.stats.installSuccess },
-        { label: 'Failed', type: 'red', calc: record => record.stats.pushFailed + record.stats.downloadFailed + record.stats.installFailed }
-      ],
-      // 新增版本弹窗
-      addModal: { visible: false, fileName: '', md5: '' },
-      // TODO: 对接 OTA 记录查询接口，以下为模拟数据
+      // 页签配置：key 即接口 app_key（契约 §5）
       systems: [
-        {
-          key: 'agent',
-          icon: 'robot',
-          activeId: 1,
-          records: [
-            { id: 1, version: '1.2.0', fileName: 'agent-1.2.0.zip', md5: 'e10adc3949ba59abbe56e057f20f883e', current: true, stats: { needPush: 120, pushed: 96, pushFailed: 24, downloadFailed: 6, installSuccess: 88, installFailed: 2 } },
-            { id: 2, version: '1.1.3', fileName: 'agent-1.1.3.zip', md5: 'c4ca4238a0b923820dcc509a6f75849b', current: false, stats: { needPush: 200, pushed: 200, pushFailed: 0, downloadFailed: 4, installSuccess: 194, installFailed: 2 } },
-            { id: 3, version: '1.1.0', fileName: 'agent-1.1.0.zip', md5: '28c8edde3d61a0411511d3b1866f0636', current: false, stats: { needPush: 150, pushed: 132, pushFailed: 18, downloadFailed: 10, installSuccess: 119, installFailed: 3 } }
-          ]
-        },
-        {
-          key: 'ek',
-          icon: 'usb',
-          activeId: 1,
-          records: [
-            { id: 1, version: '2.0.1', fileName: 'ek-2.0.1.pkg', md5: '6512bd43d9caa6e02c990b0a82652dca', current: true, stats: { needPush: 80, pushed: 65, pushFailed: 15, downloadFailed: 5, installSuccess: 58, installFailed: 2 } },
-            { id: 2, version: '2.0.0', fileName: 'ek-2.0.0.pkg', md5: 'd3d9446802a44259755d38e6d163e820', current: false, stats: { needPush: 80, pushed: 80, pushFailed: 0, downloadFailed: 2, installSuccess: 76, installFailed: 2 } }
-          ]
-        },
-        {
-          key: 'dmr_config',
-          icon: 'setting',
-          activeId: 1,
-          records: [
-            { id: 1, version: '1.0.4', fileName: 'dmr_config-1.0.4.bin', md5: '8f14e45fceea167a5a36dedd4bea2543', current: true, stats: { needPush: 60, pushed: 42, pushFailed: 18, downloadFailed: 3, installSuccess: 38, installFailed: 1 } },
-            { id: 2, version: '1.0.3', fileName: 'dmr_config-1.0.3.bin', md5: '7f6ffaa6bb0b408017b622542116a016', current: false, stats: { needPush: 60, pushed: 60, pushFailed: 0, downloadFailed: 1, installSuccess: 58, installFailed: 1 } }
-          ]
-        }
-      ]
+        { key: 'agent', icon: 'robot' },
+        { key: 'ek', icon: 'usb' },
+        { key: 'dmr_config', icon: 'setting' }
+      ],
+      // 版本列表（按 app_key 缓存）：行字段 id/version/file_name/md5/current
+      releases: { agent: [], ek: [], dmr_config: [] },
+      releaseLoading: false,
+      // 当前版本推送详情（按 app_key 缓存）：{ version, to_upgrade, upgraded, failed, list }
+      results: { agent: null, ek: null, dmr_config: null },
+      resultLoading: false,
+      // 版本列表列
+      columns: [
+        { title: 'Version', dataIndex: 'conf_ver' },
+        { title: 'Installation Package', dataIndex: 'artifactory_path' },
+        { title: 'MD5', dataIndex: 'md5', scopedSlots: { customRender: 'md5' } },
+        { title: 'Current', dataIndex: 'current', align: 'center', scopedSlots: { customRender: 'current' } }
+      ],
+      // 失败明细列：Retry 仅对 retry=true 的行展示（重推复用 deploy 定向单播）
+      failedColumns: [
+        { title: 'Host Name', dataIndex: 'host_name', width: 140 },
+        { title: 'State', dataIndex: 'state', width: 180, align: 'center', scopedSlots: { customRender: 'state' } },
+        { title: 'Action', dataIndex: 'host_id', width: 120, align: 'center', scopedSlots: { customRender: 'action' } }
+      ],
+      // 概览数量字段：口径为 deploy/result 响应（to_upgrade/upgraded/failed）
+      summaryFields: [
+        { label: 'To Upgrade', type: 'blue', calc: result => result.to_upgrade },
+        { label: 'Upgraded', type: 'green', calc: result => result.upgraded },
+        { label: 'Failed', type: 'red', calc: result => result.failed }
+      ],
+      // 新增版本弹窗：仅选文件，上传后由服务端解析版本号与 MD5
+      addModal: { visible: false, file: null, fileName: '', uploading: false }
+    }
+  },
+  computed: {
+    activeReleases () {
+      return this.releases[this.activeTab] || []
+    },
+    activeResult () {
+      return this.results[this.activeTab]
+    }
+  },
+  watch: {
+    activeTab () {
+      this.loadTabData()
     }
   },
   created () {
-    // mock：为 agent 补充历史版本记录，便于演示翻页
-    const agent = this.systems[0]
-    for (let i = 8; i >= 1; i--) {
-      agent.records.push({
-        id: agent.records.length + 1,
-        version: `1.0.${i}`,
-        fileName: `agent-1.0.${i}.zip`,
-        md5: this.randomMd5(),
-        current: false,
-        stats: { needPush: 60 + i, pushed: 60 + i, pushFailed: 0, downloadFailed: i, installSuccess: 58, installFailed: 2 }
-      })
-    }
-    // 派生 mock：失败 host 明细
-    this.systems.forEach(sys => {
-      sys.records.forEach(record => {
-        record.failedHosts = this.buildFailedHosts(record)
-      })
-    })
+    this.loadTabData()
   },
   methods: {
-    // 表格行：单击选中，当前行高亮
-    tableRowProps (sys, record) {
-      return {
-        class: record.id === sys.activeId ? 'is-active-row' : '',
-        on: {
-          click: () => this.selectRecord(sys, record)
+    // 加载当前页签的版本列表与当前版本推送详情
+    loadTabData () {
+      this.loadReleases()
+      this.loadResult()
+    },
+    async loadReleases () {
+      const appKey = this.activeTab
+      this.releaseLoading = true
+      try {
+        const res = await fetchReleases({ app_key: appKey })
+        if (appKey !== this.activeTab) return
+        const d = res.data || {}
+        this.releases[appKey] = Array.isArray(d) ? d : (d.releases || [])
+      } catch (e) {
+        this.$message.error(getErrMsg(e, 'Failed to load OTA releases'))
+      } finally {
+        if (appKey === this.activeTab) this.releaseLoading = false
+      }
+    },
+    async loadResult () {
+      const appKey = this.activeTab
+      this.resultLoading = true
+      try {
+        const res = await fetchDeployResult({ app_key: appKey })
+        if (appKey !== this.activeTab) return
+        this.results[appKey] = res || null
+      } catch (e) {
+        if (appKey !== this.activeTab) return
+        // 该类型从未推送过时后端可能 404，视为暂无推送详情
+        if (!(e.response && e.response.status === 404)) {
+          this.$message.error(getErrMsg(e, 'Failed to load push details'))
         }
+        this.results[appKey] = null
+      } finally {
+        if (appKey === this.activeTab) this.resultLoading = false
       }
     },
-    // 单击左侧条目：切换右侧详情
-    selectRecord (sys, record) {
-      sys.activeId = record.id
-    },
-    getActiveRecord (sys) {
-      return sys.records.find(record => record.id === sys.activeId)
-    },
-    // 失败明细列：仅当前使用版本显示操作列（重新推送）
-    getHostColumns (record) {
-      const cols = [
-        { title: 'Host Name', dataIndex: 'host', width: 110 },
-        { title: 'Type', dataIndex: 'type', width: 180, align: 'center', scopedSlots: { customRender: 'type' } }
-      ]
-      if (record.current) {
-        cols.push({ title: 'Action', dataIndex: 'host', key: 'action', width: 120, align: 'center', scopedSlots: { customRender: 'action' } })
-      }
-      return cols
-    },
-    // 发版：将所选版本设为当前使用版本
-    handlePublish (sys, record) {
+    // 发版：将所选版本推送为当前使用版本
+    handlePublish (record) {
+      const appKey = this.activeTab
       this.$confirm({
         title: 'Publish Confirmation',
-        content: `Are you sure to publish ${sys.key} version ${record.version} as the current version?`,
+        content: `Are you sure to publish ${appKey} version ${record.version} as the current version?`,
         okText: 'Publish',
         cancelText: 'Cancel',
         onOk: () => {
-          // TODO: 对接发版接口，此处模拟本地切换当前版本
-          sys.records.forEach(item => { item.current = item.id === record.id })
-          this.$message.success(`${sys.key} ${record.version} published as current version`)
+          return deploy({
+            release_id: record.id,
+            conf_ver: record.conf_ver,
+            conf_name: record.conf_name,
+            conf_url: record.artifactory_url,
+            conf_md5: record.md5
+          }).then(() => {
+            this.$message.success(`${appKey} ${record.version} published as current version`)
+            this.loadTabData()
+          }).catch(e => {
+            this.$message.error(getErrMsg(e, 'Failed to publish version'))
+          })
         }
       })
     },
     // 新增版本：打开弹窗并重置表单
     openAddModal () {
-      this.addModal = { visible: true, version: '', fileName: '', md5: '' }
+      this.addModal = { visible: true, file: null, fileName: '', uploading: false }
     },
-    // 新增版本：选择安装包（拦截上传，仅取文件信息，MD5 模拟生成）
+    // 新增版本：选择安装包（拦截自动上传，仅记录文件，提交时统一上传）
     handleAddFile (file) {
+      this.addModal.file = file
       this.addModal.fileName = file.name
-      this.addModal.md5 = this.randomMd5()
       return false
     },
-    // 新增版本：提交
-    handleAddSubmit () {
-      const { fileName } = this.addModal
-
-      if (!fileName) {
+    // 新增版本：提交（multipart 上传，版本号与 MD5 由服务端解析）
+    async handleAddSubmit () {
+      const { file } = this.addModal
+      if (!file) {
         this.$message.warning('Please select Installation Package')
         return
       }
-      const sys = this.systems.find(item => item.key === this.activeTab)
-      const id = sys.records.reduce((max, item) => Math.max(max, item.id), 0) + 1
-      const record = {
-        id,
-        fileName,
-        md5: this.addModal.md5,
-        current: false,
-        stats: { needPush: 0, pushed: 0, pushFailed: 0, downloadFailed: 0, installSuccess: 0, installFailed: 0 },
-        failedHosts: []
+      const appKey = this.activeTab
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('app_key', appKey)
+      this.addModal.uploading = true
+      try {
+        await upload(formData)
+        this.$message.success(`${appKey} ${file.name} uploaded`)
+        this.addModal = { visible: false, file: null, fileName: '', uploading: false }
+        this.loadReleases()
+      } catch (e) {
+        this.$message.error(getErrMsg(e, 'Failed to upload installation package'))
+        this.addModal.uploading = false
       }
-      sys.records.unshift(record)
-      sys.activeId = id
-      this.addModal.visible = false
-      this.$message.success(`${sys.key} ${fileName} created`)
     },
-    // mock：失败 host 明细（推送失败 / 下载失败 / 安装失败三类）
-    buildFailedHosts (record) {
-      const hosts = []
-      let seq = 1
-      const append = (count, type) => {
-        const messages = MOCK_ERROR_MESSAGES[type]
-        for (let i = 0; i < count; i++) {
-          hosts.push({
-            id: seq,
-            host: `host-${String(seq++).padStart(3, '0')}`,
-            type,
-            errorMsg: messages[Math.floor(Math.random() * messages.length)]
-          })
-        }
-      }
-      append(record.stats.pushFailed, 'push')
-      append(record.stats.downloadFailed, 'download')
-      append(record.stats.installFailed, 'install')
-      return hosts
-    },
-    // 失败明细：重新推送，成功后移出失败列表并同步统计
-    handleRetry (record, host) {
+    // 失败明细：定向重推单台失败主机
+    handleRetry (host) {
+      const appKey = this.activeTab
       this.$confirm({
         title: 'Re-push Confirmation',
-        content: `Are you sure to re-push to ${host.host}?`,
+        content: `Are you sure to re-push to ${host.host_name}?`,
         okText: 'Re-push',
         cancelText: 'Cancel',
         onOk: () => {
-          // TODO: 对接重新推送接口，此处模拟重推成功
-          return new Promise(resolve => {
-            setTimeout(() => {
-              const stats = record.stats
-              if (host.type === 'push') {
-                stats.pushFailed--
-              } else if (host.type === 'download') {
-                stats.downloadFailed--
-              } else {
-                stats.installFailed--
-              }
-              record.failedHosts.splice(record.failedHosts.indexOf(host), 1)
-              this.$message.success(`${host.host} re-push task submitted`)
-              resolve()
-            }, 500)
+          return deploy({
+            release_id: this.activeResult.release_id,
+            app_key: appKey,
+            host_ids: [host.host_id]
+          }).then(() => {
+            this.$message.success(`${host.host_name} re-push task submitted`)
+            this.loadResult()
+          }).catch(e => {
+            this.$message.error(getErrMsg(e, 'Failed to submit re-push task'))
           })
         }
       })
     },
-    // mock：随机 32 位 MD5
-    randomMd5 () {
-      let s = ''
-      while (s.length < 32) {
-        s += Math.random().toString(16).slice(2)
-      }
-      return s.slice(0, 32)
+    // 失败类型标签配色
+    stateColor (state) {
+      if (state === 'Download Failed') return 'orange'
+      if (state === 'Install Failed') return 'gold'
+      return 'red'
     }
   }
 }
@@ -343,17 +301,13 @@ export default {
   align-items: flex-start;
   gap: 24px;
 
-  // 左侧表格：行可点击，选中行高亮
+  // 左侧表格：当前版本行高亮
   .record-table {
     flex: 1 1 auto;
     min-width: 0;
 
-    /deep/ .ant-table-tbody > tr {
-      cursor: pointer;
-    }
-
-    /deep/ .ant-table-tbody > tr.is-active-row > td {
-      background-color: #bae7ff;
+    /deep/ .ant-table-tbody > tr.is-current-row > td {
+      background-color: #e6f7ff;
     }
 
     .md5-cell {
@@ -450,13 +404,6 @@ export default {
         }
       }
     }
-  }
-
-  .host-title {
-    margin-bottom: 12px;
-    font-weight: 500;
-    font-size: 14px;
-    color: rgba(0, 0, 0, 0.85);
   }
 
   // 失败明细表：固定表体高度，与左侧表格底部大致对齐
