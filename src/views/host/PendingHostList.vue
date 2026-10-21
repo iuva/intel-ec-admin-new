@@ -5,52 +5,33 @@
       <div class="table-page-search-wrapper">
         <a-form layout="inline">
           <a-row :gutter="48">
-            <a-col :md="8" :sm="24">
+            <a-col :md="7" :sm="22">
               <a-form-item label="Hostname">
                 <a-input v-model="queryParam.hostname" placeholder="Enter Hostname" />
               </a-form-item>
             </a-col>
-            <a-col :md="8" :sm="24">
+            <a-col :md="7" :sm="22">
               <a-form-item label="IP">
-                <a-input v-model="queryParam.ip" placeholder="Enter IP" />
+                <a-input v-model="queryParam.host_ip" placeholder="Enter IP" />
               </a-form-item>
             </a-col>
-            <a-col :md="8" :sm="24">
+            <a-col :md="6" :sm="22">
               <a-form-item label="Status">
-                <a-select v-model="queryParam.status" placeholder="Please select">
+                <!-- 变量名以接口文档 §4.1 为准：host_state（int 精确过滤，5=待激活 6=硬件变更 7=已停用；8=Updating 取自前端状态字典） -->
+                <a-select v-model="queryParam.host_state" placeholder="Please select">
                   <a-select-option value="">All</a-select-option>
-                  <a-select-option value="Pending Activation">Pending Activation</a-select-option>
-                  <a-select-option value="Hardware Modification">Hardware Modification</a-select-option>
-                  <a-select-option value="Manually Disabled">Manually Disabled</a-select-option>
-                  <a-select-option value="Updating">Updating</a-select-option>
+                  <a-select-option :value="5">Pending Activation</a-select-option>
+                  <a-select-option :value="6">Hardware Modification</a-select-option>
+                  <a-select-option :value="7">Manually Disabled</a-select-option>
+                  <a-select-option :value="8">Updating</a-select-option>
                 </a-select>
               </a-form-item>
             </a-col>
-            <a-col :md="8" :sm="24">
-              <a-form-item label="User">
-                <a-input v-model="queryParam.user" placeholder="Enter User" />
-              </a-form-item>
-            </a-col>
-            <template v-if="advanced">
-              <a-col :md="8" :sm="24">
-                <a-form-item label="MAC">
-                  <a-input v-model="queryParam.mac" placeholder="Enter MAC" />
-                </a-form-item>
-              </a-col>
-              <a-col :md="8" :sm="24">
-                <a-form-item label="MachineGuid">
-                  <a-input v-model="queryParam.machineGuid" placeholder="Enter MachineGuid" />
-                </a-form-item>
-              </a-col>
-            </template>
-            <a-col :md="!advanced && 8 || 24" :sm="24">
+
+            <a-col :md="4" :sm="24">
               <span class="table-page-search-submitButtons" :class="{ 'buttons-collapsed': !advanced }" :style="advanced && { float: 'right', overflow: 'hidden' } || {} ">
                 <a-button type="primary" @click="$refs.table.refresh(true)">Search</a-button>
                 <a-button style="margin-left: 8px" @click="handleReset">Reset</a-button>
-                <a @click="toggleAdvanced" style="margin-left: 8px">
-                  {{ advanced ? 'Collapse' : 'Expand' }}
-                  <a-icon :type="advanced ? 'up' : 'down'"/>
-                </a>
               </span>
             </a-col>
           </a-row>
@@ -66,9 +47,12 @@
       <s-table
         ref="table"
         size="default"
-        rowKey="id"
+        rowKey="host_id"
         :columns="columns"
-        :data="loadData"
+        :data="fetchPendingList"
+        :dataBefore="pendingListReq"
+        :dataAfter="pendingListRes"
+        :params="queryParam"
         :alert="{ show: true, clear: true }"
         :rowSelection="rowSelection"
         showPagination="auto"
@@ -93,7 +77,12 @@
         v-model="emailVisible"
         @ok="handleEmailOk"
       >
-        <a-alert type="info" show-icon style="margin-bottom: 24px" :message="`Current email: ${currentEmail || 'Not set'}`" />
+        <a-alert
+          type="info"
+          show-icon
+          style="margin-bottom: 24px"
+          :message="emailLoading ? 'Loading current email...' : `Current email: ${currentEmail || 'Not set'}`"
+        />
         <!-- 与 Update Password 弹窗一致的 a-form + v-decorator 写法，保证 label 和表单项间距正常渲染 -->
         <a-form :form="emailForm" v-bind="emailFormItemLayout" class="email-form">
           <a-form-item label="New Email">
@@ -116,97 +105,13 @@
 
 <script>
 import { STable, Ellipsis } from '@/components'
+import { fetchPendingList, activateHost, fetchMaintainEmail, maintainEmail } from '@/api/appr-host'
+import { deleteEnabledHost } from '@/api/host'
+import { stateDict } from '@/store/dict'
+import { nextTick } from 'vue'
 
-const columns = [
-  {
-    title: 'Host ID',
-    dataIndex: 'id'
-  },
-  {
-    title: 'Hostname',
-    dataIndex: 'hostname'
-  },
-  {
-    title: 'IP',
-    dataIndex: 'ip'
-  },
-  {
-    title: 'Status',
-    dataIndex: 'status',
-    scopedSlots: { customRender: 'status' }
-  },
-  {
-    title: 'Submission Time',
-    dataIndex: 'submissionTime'
-  },
-  {
-    title: 'Action',
-    dataIndex: 'action',
-    // width: '1%' 为最小宽度提示：操作列收缩到内容宽度并整体靠右，
-    // 右缘到表格右侧的 16px 内边距与 ID 列左缘的 16px 间距对称；
-    // 列内保持左对齐，富余宽度全部分给数据列
-    width: '1%',
-    scopedSlots: { customRender: 'action' }
-  }
-]
-
-const statusMap = {
-  Idle: {
-    color: 'green',
-    text: 'Idle'
-  },
-  Locked: {
-    color: 'gold',
-    text: 'Locked'
-  },
-  Occupied: {
-    color: 'orange',
-    text: 'Occupied'
-  },
-  'Case Executing': {
-    color: 'blue',
-    text: 'Case Executing'
-  },
-  Offline: {
-    color: 'red',
-    text: 'Offline'
-  },
-  'Pending Activation': {
-    color: 'purple',
-    text: 'Pending Activation'
-  },
-  'Hardware Modification': {
-    color: 'cyan',
-    text: 'Hardware Modification'
-  },
-  'Manually Disabled': {
-    color: 'volcano',
-    text: 'Manually Disabled'
-  },
-  Updating: {
-    color: 'geekblue',
-    text: 'Updating'
-  }
-}
-
-// 模拟数据，后续接入后端接口时替换
-const mockData = [
-  { id: '1853587106098639542', hostname: 'MG006', ip: '00:11:22:33:44:60', mac: '00:11:22:33:44:60', machineGuid: 'MG006', user: '', status: 'Pending Activation', submissionTime: '2026/3/18 20:09:21' },
-  { id: '1853587105329048591', hostname: 'MG003', ip: '00:11:22:33:44:57', mac: '00:11:22:33:44:57', machineGuid: 'MG003', user: '', status: 'Pending Activation', submissionTime: '1970/1/1 08:00:00' },
-  { id: '1853587105329084033', hostname: 'MG005', ip: '00:11:22:33:44:59', mac: '00:11:22:33:44:59', machineGuid: 'MG005', user: '', status: 'Pending Activation', submissionTime: '2026/3/18 20:10:51' },
-  { id: '1853587105329296616', hostname: 'MG002', ip: '00:11:22:33:44:56', mac: '00:11:22:33:44:56', machineGuid: 'MG002', user: '', status: 'Pending Activation', submissionTime: '2026/3/18 20:11:18' },
-  { id: '1853587105329430486', hostname: 'MG004', ip: '00:11:22:33:44:58', mac: '00:11:22:33:44:58', machineGuid: 'MG004', user: '', status: 'Pending Activation', submissionTime: '2026/3/18 20:20:40' },
-  { id: '1853587105329837288', hostname: 'MG001', ip: '00:11:22:33:44:55', mac: '00:11:22:33:44:55', machineGuid: 'MG001', user: '', status: 'Pending Activation', submissionTime: '2026/3/18 20:21:28' },
-  { id: '3000000002', hostname: 'MG-EXEC-002', ip: 'AA:11:22:33:44:56', mac: 'AA:11:22:33:44:56', machineGuid: 'MG-EXEC-002', user: '', status: 'Manually Disabled', submissionTime: '1970/1/1 08:00:00' },
-  // 以下为补充的虚拟示例数据，覆盖其余状态便于查询筛选演示
-  { id: '3000000003', hostname: 'MG-EXEC-003', ip: 'AB:11:22:33:44:57', mac: 'AB:11:22:33:44:57', machineGuid: 'MG-EXEC-003', user: '', status: 'Case Executing', submissionTime: '2026/3/19 09:15:00' },
-  { id: '3000000004', hostname: 'MG-EXEC-004', ip: 'AC:11:22:33:44:58', mac: 'AC:11:22:33:44:58', machineGuid: 'MG-EXEC-004', user: '', status: 'Idle', submissionTime: '2026/3/19 10:30:00' },
-  { id: '3000000005', hostname: 'MG-EXEC-005', ip: 'AD:11:22:33:44:59', mac: 'AD:11:22:33:44:59', machineGuid: 'MG-EXEC-005', user: '', status: 'Occupied', submissionTime: '2026/3/19 11:45:00' },
-  { id: '3000000006', hostname: 'MG-EXEC-006', ip: 'AE:11:22:33:44:5A', mac: 'AE:11:22:33:44:5A', machineGuid: 'MG-EXEC-006', user: '', status: 'Offline', submissionTime: '2026/3/19 13:00:00' },
-  { id: '3000000007', hostname: 'MG-EXEC-007', ip: 'AF:11:22:33:44:5B', mac: 'AF:11:22:33:44:5B', machineGuid: 'MG-EXEC-007', user: '', status: 'Hardware Modification', submissionTime: '2026/3/19 14:20:00' },
-  { id: '3000000008', hostname: 'MG-EXEC-008', ip: 'B0:11:22:33:44:5C', mac: 'B0:11:22:33:44:5C', machineGuid: 'MG-EXEC-008', user: '', status: 'Updating', submissionTime: '2026/3/19 15:40:00' },
-  { id: '3000000009', hostname: 'MG-EXEC-009', ip: 'B1:11:22:33:44:5D', mac: 'B1:11:22:33:44:5D', machineGuid: 'MG-EXEC-009', user: '', status: 'Locked', submissionTime: '2026/3/19 16:55:00' }
-]
+// 业务错误提示：优先展示服务端 message（如 422 EMAIL_CONFIRM_MISMATCH）
+const getErrMsg = (e, fallback) => (e && e.response && e.response.data && e.response.data.message) || fallback
 
 export default {
   name: 'PendingHostList',
@@ -219,11 +124,10 @@ export default {
     this.emailForm = this.$form.createForm(this)
   },
   data () {
-    this.columns = columns
     return {
       // 高级搜索 展开/关闭
       advanced: false,
-      // 查询参数
+      // 查询参数（变量名以接口文档 §4.1 为准）
       queryParam: {},
       // 表格多选
       selectedRowKeys: [],
@@ -237,35 +141,49 @@ export default {
       },
       // 维护通知邮箱弹窗
       emailVisible: false,
+      // 当前邮箱查询中（弹窗打开时实时拉取）
+      emailLoading: false,
       // 弹窗表单布局：与 Update Password 弹窗一致（labelCol 7 / wrapperCol 13）
       emailFormItemLayout: {
         labelCol: { lg: { span: 7 }, sm: { span: 7 } },
         wrapperCol: { lg: { span: 13 }, sm: { span: 15 } }
       },
-      // 当前生效的通知邮箱，后续接入后端接口时替换
-      currentEmail: 'ops-notify@company.com',
+      // 当前生效的通知邮箱（弹窗打开时经「维护邮箱-查」接口实时获取）
+      currentEmail: '',
       // 加载数据方法 必须为 Promise 对象
-      loadData: parameter => {
-        const requestParameters = Object.assign({}, parameter, this.queryParam)
-        // TODO: 替换为后端接口，如 getPendingHostList(requestParameters)
-        const filtered = mockData.filter(item => {
-          return (!requestParameters.hostname || item.hostname.toLowerCase().includes(requestParameters.hostname.toLowerCase())) &&
-            (!requestParameters.ip || item.ip.toLowerCase().includes(requestParameters.ip.toLowerCase())) &&
-            (!requestParameters.status || item.status === requestParameters.status) &&
-            (!requestParameters.user || item.user.toLowerCase().includes(requestParameters.user.toLowerCase())) &&
-            (!requestParameters.mac || item.mac.toLowerCase().includes(requestParameters.mac.toLowerCase())) &&
-            (!requestParameters.machineGuid || item.machineGuid.toLowerCase().includes(requestParameters.machineGuid.toLowerCase()))
-        })
-        return new Promise(resolve => {
-          resolve({
-            pageSize: parameter.pageSize || 10,
-            pageNo: parameter.pageNo || 1,
-            totalCount: filtered.length,
-            totalPage: Math.ceil(filtered.length / (parameter.pageSize || 10)),
-            data: filtered
-          })
-        })
-      }
+      fetchPendingList,
+      columns: [
+        {
+          title: 'Host ID',
+          dataIndex: 'host_id'
+        },
+        {
+          title: 'Hostname',
+          dataIndex: 'host_no',
+          customRender: text => text || '-'
+        },
+        {
+          title: 'IP',
+          dataIndex: 'host_ip'
+        },
+        {
+          title: 'Status',
+          dataIndex: 'host_state',
+          scopedSlots: { customRender: 'status' }
+        },
+        {
+          title: 'Submission Time',
+          dataIndex: 'subm_time'
+        },
+        {
+          title: 'Action',
+          dataIndex: 'action',
+          // width: '1%' 为最小宽度提示：操作列收缩到内容宽度并整体靠右，
+          // 右缘到表格右侧的 16px 内边距与 ID 列左缘的 16px 间距对称；
+          // 列内保持左对齐，富余宽度全部分给数据列
+          scopedSlots: { customRender: 'action' }
+        }
+      ]
     }
   },
   computed: {
@@ -283,23 +201,48 @@ export default {
   },
   filters: {
     statusFilter (type) {
-      return statusMap[type] ? statusMap[type].text : type
+      return stateDict.host[type] ? stateDict.host[type].text : type
     },
     statusColorFilter (type) {
-      return statusMap[type] ? statusMap[type].color : 'default'
+      return stateDict.host[type] ? stateDict.host[type].color : 'default'
     }
   },
   methods: {
-    // 应用 URL query 中的状态筛选（仅当 query 带 status 参数时生效）
+    // 应用 URL query 中的状态筛选（仅当 query 带 host_state 参数时生效）
     applyRouteStatus () {
-      const status = this.$route.query.status
-      if (status === undefined || status === this.queryParam.status) {
+      const status = this.$route.query.host_state
+      if (status === undefined || String(status) === String(this.queryParam.host_state)) {
         return
       }
-      this.$set(this.queryParam, 'status', status)
+      // host_state 契约为 int；URL 携带为字符串需转数字（空串=All 保持原样）
+      this.$set(this.queryParam, 'host_state', status === '' ? '' : Number(status))
       // 首次进入时 s-table 未挂载，由初始加载读取 queryParam；keepAlive 再次进入时手动刷新
       if (this.$refs.table) {
         this.$refs.table.refresh(true)
+      }
+    },
+    // 请求前参数处理：s-table 通用分页参数转换为契约分页参数，并剔除空值搜索条件
+    pendingListReq (params) {
+      params.page = params.pageNo
+      params.page_size = params.pageSize
+      delete params.pageNo
+      delete params.pageSize
+      Object.keys(params).forEach(key => {
+        if (params[key] === '' || params[key] === undefined || params[key] === null) {
+          delete params[key]
+        }
+      })
+      // host_state 按契约为 int（5/6/7/8），URL 回显/下拉混合来源统一转数字
+      if (params.host_state !== undefined) {
+        params.host_state = Number(params.host_state)
+      }
+    },
+    // 响应后数据映射：契约分页结构转 s-table 结构（page/page_size/total + hosts）
+    pendingListRes (res) {
+      return {
+        pageNo: res.data.page,
+        totalCount: res.data.total,
+        data: res.data.hosts
       }
     },
     toggleAdvanced () {
@@ -307,27 +250,41 @@ export default {
     },
     handleReset () {
       this.queryParam = {}
-      this.$refs.table.refresh(true)
+      nextTick(() => {
+        this.$refs.table.refresh(true)
+      })
     },
-    // 批量通过版本升级（需先勾选行）
+    // 批量通过版本升级（需先勾选行；§4.2 审批通过 diff_type=1 版本变更）
     handleBatchApprove () {
       const that = this
       this.$confirm({
         title: 'Batch Approve Version Upgrade',
         content: `Are you sure to batch approve version upgrade for ${this.selectedRowKeys.length} selected hosts?`,
         onOk () {
-          // TODO: 调用后端批量通过版本升级接口
-          that.$message.success(`Version upgrade approved for ${that.selectedRowKeys.length} hosts`)
-          that.selectedRowKeys = []
-          that.$refs.table.refresh()
+          activateHost({ host_ids: that.selectedRowKeys, diff_type: 1 }).then(() => {
+            that.$message.success(`Version upgrade approved for ${that.selectedRowKeys.length} hosts`)
+            that.$refs.table.clearSelected()
+            that.$refs.table.refresh()
+          }).catch(e => {
+            that.$message.error(getErrMsg(e, 'Failed to batch approve version upgrade'))
+          })
         }
       })
     },
-    // 维护通知邮箱：弹窗填写并保存（打开时清空上次输入）
+    // 维护通知邮箱：打开弹窗时实时查询当前生效邮箱（§4.2 维护邮箱-查），并清空上次输入
     handleMaintainEmail () {
       this.emailVisible = true
+      this.emailLoading = true
+      this.currentEmail = ''
       this.$nextTick(() => {
         this.emailForm.resetFields()
+      })
+      fetchMaintainEmail().then(res => {
+        this.currentEmail = (res.data && res.data.conf_val) || ''
+      }).catch(e => {
+        this.$message.error(getErrMsg(e, 'Failed to load current notification email'))
+      }).finally(() => {
+        this.emailLoading = false
       })
     },
     // 确认邮箱与新邮箱一致
@@ -342,21 +299,29 @@ export default {
     handleEmailOk () {
       this.emailForm.validateFields((err, values) => {
         if (err) return
-        // TODO: 调用后端维护通知邮箱接口
-        this.$message.success(`Notification email saved: ${values.email}`)
-        this.emailVisible = false
+        // 保存通知邮箱（§4.2 维护邮箱-改：{email, email_confirm?}，不一致 422 EMAIL_CONFIRM_MISMATCH）
+        maintainEmail({ email: values.email, email_confirm: values.confirmEmail }).then(() => {
+          this.$message.success(`Notification email saved: ${values.email}`)
+          this.currentEmail = values.email
+          this.emailVisible = false
+        }).catch(e => {
+          this.$message.error(getErrMsg(e, 'Failed to save notification email'))
+        })
       })
     },
-    // 单行审批启用
+    // 单行审批通过（§4.2 审批通过：diff_type 取行变更类型 diff_state，1=版本变更 2=内容变更）
     handleApproveEnable (record) {
       const that = this
       this.$confirm({
         title: 'Approve Enable',
-        content: `Are you sure to approve and enable Host ${record.hostname} (${record.ip})?`,
+        content: `Are you sure to approve and enable Host ${record.host_no || record.host_id} (${record.host_ip})?`,
         onOk () {
-          // TODO: 调用后端审批启用接口
-          that.$message.success(`Host ${record.hostname} has been approved and enabled`)
-          that.$refs.table.refresh()
+          activateHost({ host_ids: [record.host_id], diff_type: record.diff_state }).then(() => {
+            that.$message.success(`Host ${record.host_no || record.host_id} has been approved and enabled`)
+            that.$refs.table.refresh()
+          }).catch(e => {
+            that.$message.error(getErrMsg(e, `Failed to approve Host ${record.host_no || record.host_id}`))
+          })
         }
       })
     },
@@ -365,25 +330,24 @@ export default {
       this.$router.push({
         path: '/pending-host/detail',
         query: {
-          id: record.id,
-          hostname: record.hostname,
-          ip: record.ip,
-          mac: record.mac,
-          machineGuid: record.machineGuid,
-          status: record.status
+          id: record.host_id
         }
       })
     },
+    // 删除 Host（§3.2：DELETE /host/{host_id}，逻辑删除；与可用主机列表共用 deleteEnabledHost）
     handleDelete (record) {
       const that = this
       this.$confirm({
         title: 'Delete Host',
-        content: `Are you sure to delete Host ${record.hostname} (${record.ip})? This cannot be undone!`,
+        content: `Are you sure to delete Host ${record.host_no || record.host_id} (${record.host_ip})? This cannot be undone!`,
         okType: 'danger',
         onOk () {
-          // TODO: 调用后端删除接口
-          that.$message.success(`Host ${record.hostname} has been deleted`)
-          that.$refs.table.refresh()
+          deleteEnabledHost(record.host_id).then(() => {
+            that.$message.success(`Host ${record.host_no || record.host_id} has been deleted`)
+            that.$refs.table.refresh()
+          }).catch(e => {
+            that.$message.error(getErrMsg(e, `Failed to delete Host ${record.host_no || record.host_id}`))
+          })
         }
       })
     }

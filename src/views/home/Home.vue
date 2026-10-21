@@ -204,7 +204,7 @@ export default {
         { key: 'idle', title: 'Idle Hosts', value: 0, icon: 'check-circle', color: '#52c41a', link: { path: '/available-host/list', query: { host_state: 0 } } },
         { key: 'occupied', title: 'Occupied Hosts', value: 0, icon: 'schedule', color: '#fa8c16', link: { path: '/available-host/list', query: { host_state: 2 } } },
         { key: 'offline', title: 'Offline Hosts', value: 0, icon: 'disconnect', color: '#ff4d4f', link: { path: '/available-host/list', query: { host_state: 4 } } },
-        { key: 'pending', title: 'Pending Hosts', value: 0, icon: 'audit', color: '#722ed1', link: { path: '/pending-host/list', query: { status: '' } } },
+        { key: 'pending', title: 'Pending Hosts', value: 0, icon: 'audit', color: '#722ed1', link: { path: '/pending-host/list', query: { host_state: '' } } },
         { key: 'occupied_timeout', title: 'Occupied Timeout Alerts', value: 0, icon: 'clock-circle', color: '#fa541c', link: { path: '/available-host/list', query: { host_state: 2 } } },
         { key: 'offline_timeout', title: 'Offline Timeout Alerts', value: 0, icon: 'exclamation-circle', color: '#f5222d', link: { path: '/available-host/list', query: { host_state: 4 } } },
         // 可用 HOST 无硬件更新对应状态，跳转后展示全部
@@ -364,6 +364,7 @@ export default {
     // 待审批行映射：kind 附带图标 / 颜色
     mapPendingItem (item) {
       return {
+        hostId: item.host_id,
         hostName: item.hostname,
         time: this.formatTime(item.since),
         kind: item.kind,
@@ -444,10 +445,11 @@ export default {
     },
     // 点击待审批动态中的 hostname，跳转 Pending HOST 详情页
     handlePendingClick (item) {
+      console.log('aaaaaaaaaaaaaaaaaa', item)
       this.$router.push({
         path: '/pending-host/detail',
         query: {
-          hostname: item.hostName
+          id: item.hostId
         }
       })
     }

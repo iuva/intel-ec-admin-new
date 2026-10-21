@@ -101,3 +101,12 @@ export const getVncInfo = (id) => {
     method: 'get'
   })
 }
+
+// get host vnc info
+// Path parameter: id
+export const getHWV = (id) => {
+  return request({
+    url: `/api/v1/host/admin/host/${id}/hw-versions`,
+    method: 'get'
+  })
+}

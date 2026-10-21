@@ -7,26 +7,28 @@
   >
     <!-- content（左：Identification Information）与 extraContent（右：Status）在同一 flex 行，实现左右布局 -->
     <template v-slot:content>
-      <a-descriptions size="small" :column="3" class="host-meta">
-        <a-descriptions-item label="Hostname">
-          <span class="meta-value">{{ hostInfo.hostname }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="IP">
-          <span class="meta-value">{{ hostInfo.ip }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="MAC">
-          <span class="meta-value">{{ hostInfo.mac }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="MachineGuid">
-          <span class="meta-value">{{ hostInfo.machineGuid }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="Port">
-          <span class="meta-value">5900</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="Password">
-          <span class="meta-value">{{ passwordDisplay }}</span>
-        </a-descriptions-item>
-      </a-descriptions>
+      <a-spin :spinning="detailLoading">
+        <a-descriptions size="small" :column="3" class="host-meta">
+          <a-descriptions-item label="Hostname">
+            <span class="meta-value">{{ hostInfo.hostname }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="IP">
+            <span class="meta-value">{{ hostInfo.ip }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="MAC">
+            <span class="meta-value">{{ hostInfo.mac }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="MachineGuid">
+            <span class="meta-value">{{ hostInfo.machineGuid }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="Port">
+            <span class="meta-value">{{ hostInfo.port }}</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="Password">
+            <span class="meta-value">{{ passwordDisplay }}</span>
+          </a-descriptions-item>
+        </a-descriptions>
+      </a-spin>
     </template>
     <!-- actions：页头右上角操作区（同 Host 详情页 extra 布局）；按钮权限配置见 src/permission.js -->
     <template v-slot:extra>
@@ -47,9 +49,12 @@
       <!-- Hardware Information（审核记录表格，View 弹窗同 history 页） -->
       <div class="title">Hardware Information</div>
       <s-table
-        row-key="key"
+        ref="hwTable"
+        row-key="hw_rec_id"
         :columns="hardwareColumns"
-        :data="loadHardwareData"
+        :data="loadHwRecords"
+        :dataBefore="hwRecordsReq"
+        :dataAfter="hwRecordsRes"
         showPagination="auto"
       >
         <template slot="status" slot-scope="text">
@@ -136,15 +141,31 @@ import { STable, Ellipsis } from '@/components'
 import { CodeDiff } from 'v-code-diff'
 import { roleMixin, PASSWORD_MASK } from '@/utils/roles'
 import { countDiffStats } from './jsonDiff'
-// 本次更新的硬件信息示例数据：直接使用项目根目录 HW.json（后续接入后端接口时替换为接口返回值）
-import hwLatest from './hw.json'
+import { fetchPendingHostDetail, activateHost, getHwRecord, getHWV } from '@/api/appr-host'
+import { stateDict } from '@/store/dict'
 
+// 业务错误提示：优先展示服务端 message（如 422 approve_failed/process_failed）
+const getErrMsg = (e, fallback) => (e && e.response && e.response.data && e.response.data.message) || fallback
+
+// hw-records 行状态 sync_state（§3.3 硬件变更历史列表：0空/1待同步/2生效/3失败/4审批通过）→ Review Status 徽标
 const statusMap = {
+  0: {
+    status: 'default',
+    text: '--'
+  },
   1: {
     status: 'processing',
     text: 'Pending Review'
   },
   2: {
+    status: 'success',
+    text: 'Approved'
+  },
+  3: {
+    status: 'error',
+    text: 'Failed'
+  },
+  4: {
     status: 'success',
     text: 'Approved'
   }
@@ -175,34 +196,6 @@ const statusBgColorMap = {
   Updating: '#f0f5ff'
 }
 
-// 上一次审批通过的硬件信息示例：基于 HW.json 修改部分字段，便于演示对比效果（后续接入后端接口时替换）
-const buildApprovedSnapshot = () => {
-  const data = JSON.parse(JSON.stringify(hwLatest))
-  data.revision = '0.0.9'
-  data.mainboard.board.lsio.nvme_installed = true
-  data.mainboard.board.peripheral.flash_programmer_installed = true
-  data.mainboard.misc.bmc_version = 'bhs-25.05-0-ge1a2b3-5c6def2'
-  data.mainboard.misc.cpld_version = '0.38'
-  data.memory[0].memory.memory_meta_data.total_memory_size.value = 128
-  data.memory[0].memory.channel = data.memory[0].memory.channel.filter(ch => ch.socket_id === 0)
-  data.soc[1].soc.soc_feature.ddr5_freq = 4800
-  return data
-}
-const snapshotApproved = buildApprovedSnapshot()
-
-// 构造审核记录的快照数据（每条记录独立引用，便于后续替换为后端数据）
-const buildRecord = (key, updateTime, reviewer, reviewTime, status) => ({
-  key,
-  updateTime,
-  reviewer,
-  reviewTime,
-  status,
-  // 本次更新的硬件信息（diff 左侧）
-  pendingData: hwLatest,
-  // 上一次审批通过的硬件信息（diff 右侧）
-  approvedData: snapshotApproved
-})
-
 export default {
   name: 'PendingHostDetail',
   components: {
@@ -211,14 +204,40 @@ export default {
     CodeDiff
   },
   mixins: [roleMixin],
+  created () {
+    // 路由唯一且必须携带 host_id（列表页 View 跳转携带），缺失时回列表页
+    if (!this.hostId) {
+      this.$message.warning('Missing required parameter: host_id')
+      this.$router.replace('/pending-host')
+      return
+    }
+    this.fetchDetail()
+  },
   data () {
     return {
-      // Hardware Information 审核记录表头
+      // 详情数据加载中
+      detailLoading: false,
+      // 待审批主机详情（§4.3：GET /appr-host/detail，信息表字段以接口文档为准：
+      // host_no/host_ip/mac_addr/mg_id/host_state/diff_state，与 §4.1 行字段命名一致）
+      detail: {},
+      // Hardware Information 审核记录表头（行字段以接口文档 §3.3 硬件变更历史列表为准）
       hardwareColumns: [
-        { title: 'Update Time', dataIndex: 'updateTime' },
-        { title: 'Reviewer', dataIndex: 'reviewer', customRender: (text) => text || '--' },
-        { title: 'Review Time', dataIndex: 'reviewTime', customRender: (text) => text || '--' },
-        { title: 'Review Status', dataIndex: 'status', scopedSlots: { customRender: 'status' } },
+        {
+          title: 'Update Time',
+          dataIndex: 'updated_time',
+          customRender: (text, record) => text || record.created_time || '-'
+        },
+        {
+          title: 'Reviewer',
+          dataIndex: 'appr_by_name',
+          customRender: (text, record) => text || record.appr_by || '--'
+        },
+        {
+          title: 'Review Time',
+          dataIndex: 'appr_time',
+          customRender: (text, record) => text || record.appr_time || '--'
+        },
+        { title: 'Review Status', dataIndex: 'sync_state', scopedSlots: { customRender: 'status' } },
         {
           title: 'Action',
           dataIndex: 'action',
@@ -226,23 +245,6 @@ export default {
           scopedSlots: { customRender: 'action' }
         }
       ],
-      // 模拟审核记录数据，后续接入后端接口时替换
-      loadHardwareData: () => {
-        return new Promise(resolve => {
-          resolve({
-            data: [
-              buildRecord('1', '2026/3/18 20:09:21', '', '', 1),
-              buildRecord('2', '2026/3/18 20:10:51', 'lisi@example.com', '2026/3/19 09:30:00', 2),
-              buildRecord('3', '2026/3/18 20:11:18', 'wangwu@example.com', '2026/3/19 10:12:00', 2),
-              buildRecord('4', '2026/3/18 20:20:40', 'lisi@example.com', '2026/3/19 11:45:00', 2)
-            ],
-            pageSize: 10,
-            pageNo: 1,
-            totalPage: 1,
-            totalCount: 4
-          })
-        })
-      },
 
       // 审核详情弹窗（样式同 history 页面）
       visible: false,
@@ -255,6 +257,12 @@ export default {
     }
   },
   watch: {
+    // 同路由不同 host_id（组件复用）时重新拉取详情
+    '$route.query.id' () {
+      if (this.hostId) {
+        this.fetchDetail()
+      }
+    },
     // 弹窗打开后标记「修改」行（CodeDiff 渲染完成后再扫描 DOM）
     visible (v) {
       if (v) {
@@ -285,22 +293,26 @@ export default {
     breadcrumb () {
       return { props: { routes: this.breadcrumbRoutes, itemRender: this.breadcrumbItemRender } }
     },
-    // 来自 Pending HOST 列表页 View 跳转携带的 query；直接访问时用示例数据兜底
+    // 路由唯一且必须参数：host_id（列表页 View 跳转携带）
     hostId () {
-      return this.$route.query.id || '1853587106098639542'
+      return this.$route.query.id || ''
     },
+    // 基础信息：字段以接口文档 §4.3 信息表为准（与 §4.1 行字段命名一致）
     hostInfo () {
-      const query = this.$route.query
+      const d = this.detail
       return {
-        hostname: query.hostname || 'MG006',
-        ip: query.ip || '00:11:22:33:44:60',
-        mac: query.mac || '00:11:22:33:44:60',
-        machineGuid: query.machineGuid || 'MG006',
-        password: query.password || 'Host001@2025'
+        hostname: d.host_no || '-',
+        ip: d.ip || '-',
+        mac: d.mac || '-',
+        port: d.port || '-',
+        machineGuid: d.mg_id || '-',
+        password: d.password || '-'
       }
     },
+    // 主机状态：host_state（int，5=待激活 6=硬件变更 7=已停用 8=Updating）映射为状态文案（与列表页 stateDict 口径一致）
     hostStatus () {
-      return this.$route.query.status || 'Pending Activation'
+      const s = this.detail.host_state
+      return stateDict.host[s] ? stateDict.host[s].text : '-'
     },
     // 密码按登录角色展示：Admin 明文 / 其它角色（Lab Tech 等）掩码
     passwordDisplay () {
@@ -322,6 +334,18 @@ export default {
     }
   },
   methods: {
+    // 拉取待审批主机详情（§4.3：GET /appr-host/detail?host_id=xxx）
+    // 出参：信息表 + 硬件评审历史 + 待审批 diff 数据（评审历史/diff 暂未下发，当前仅消费信息表）
+    fetchDetail () {
+      this.detailLoading = true
+      fetchPendingHostDetail({ host_id: this.hostId }).then(res => {
+        this.detail = res.data
+      }).catch(e => {
+        this.$message.error(getErrMsg(e, 'Failed to load pending host detail'))
+      }).finally(() => {
+        this.detailLoading = false
+      })
+    },
     // 对象转格式化 JSON 字符串（供 CodeDiff 左右对比展示）
     jTos (v) {
       return JSON.stringify(v, null, 2)
@@ -354,37 +378,84 @@ export default {
       }
       return h('router-link', { props: { to: route.path } }, [route.breadcrumbName])
     },
-    // 查看审核详情：打开弹窗并重置折叠面板（同 history 页交互）
+    // 加载数据方法（必须为 Promise 对象）：§3.3 硬件变更历史列表，path 入参 host_id
+    loadHwRecords (params) {
+      return getHwRecord(this.hostId, params)
+    },
+    // 请求前参数处理：s-table 通用分页参数转换为契约分页参数（page/page_size，筛选参数均非必填）
+    hwRecordsReq (params) {
+      params.page = params.pageNo
+      params.page_size = params.pageSize
+      delete params.pageNo
+      delete params.pageSize
+      Object.keys(params).forEach(key => {
+        if (params[key] === '' || params[key] === undefined || params[key] === null) {
+          delete params[key]
+        }
+      })
+    },
+    // 响应后数据映射：契约分页结构转 s-table 结构（page/total + 行数组）
+    hwRecordsRes (res) {
+      const payload = res || {}
+      const rows = payload.list
+      return {
+        pageNo: payload.page || 1,
+        totalCount: payload.total !== undefined ? payload.total : rows.length,
+        data: rows
+      }
+    },
+    // 查看审核详情（§4.2 按记录取硬件版本：GET /appr-host/hw/{hw_rec_id}）
+    // hw_info=本次待审批新版（Current Data）；previous.hw_info=上一次审批通过（Historical Data），previous 为 null 时左侧为空
     handleViewHardware (record) {
-      this.activeRecord = record
-      // 统计各面板新增/删除/修改字段数（+绿 / ~黄 / -红 徽标）
-      this.computeDiffStats()
-      this.visible = true
-      // 先展开全部面板再收起，触发折叠面板重置动画
-      this.activeKey = Object.keys(record.pendingData || {})
-      this.modalConShow = false
-      this.$nextTick(() => {
-        setTimeout(() => {
-          this.activeKey = []
-        }, 50)
-        setTimeout(() => {
-          this.modalConShow = true
-        }, 100)
+      getHWV(record.hw_rec_id).then(res => {
+        const d = res || {}
+        this.activeRecord = {
+          pendingData: d.hw_info || {},
+          approvedData: (d.previous && d.previous.hw_info) || {}
+        }
+        // 统计各面板新增/删除/修改字段数（+绿 / ~黄 / -红 徽标）
+        this.computeDiffStats()
+        this.visible = true
+        // 先展开全部面板再收起，触发折叠面板重置动画
+        this.activeKey = Object.keys(this.activeRecord.pendingData || {})
+        this.modalConShow = false
+        this.$nextTick(() => {
+          setTimeout(() => {
+            this.activeKey = []
+          }, 50)
+          setTimeout(() => {
+            this.modalConShow = true
+          }, 100)
+        })
+      }).catch(e => {
+        this.$message.error(getErrMsg(e, 'Failed to load hardware version detail'))
       })
     },
     // 切换全部面板：已展开则全部收缩，已收缩则全部展开
     toggleAllPanels () {
       this.activeKey = this.allExpanded ? [] : [...this.diffSections]
     },
-    // 审批启用：二次确认（占位操作，后续接入后端接口时替换 onOk 内逻辑）
+    // 审批启用（§4.2：POST /appr-host/approve，body {host_ids[], diff_type?}）
+    // diff_type 取详情 diff_state（1=版本变更 2=内容变更），与列表页单行审批口径一致
     handleApproveEnable () {
+      const that = this
       this.$confirm({
         title: 'Approve Enable',
-        content: 'Are you sure to approve and enable this host?',
+        content: `Are you sure to approve and enable Host ${this.hostInfo.hostname} (${this.hostInfo.ip})?`,
         okText: 'Approve',
         cancelText: 'Cancel',
         onOk () {
-          // TODO: 接入后端审批接口
+          const payload = { host_ids: [that.hostId] }
+          if (that.detail && that.detail.diff_state) {
+            payload.diff_type = that.detail.diff_state
+          }
+          activateHost(payload).then(() => {
+            that.$message.success(`Host ${that.hostInfo.hostname} has been approved and enabled`)
+            // 审批通过后主机移出待审批池，返回列表页
+            that.$router.replace('/pending-host')
+          }).catch(e => {
+            that.$message.error(getErrMsg(e, `Failed to approve Host ${that.hostInfo.hostname}`))
+          })
         }
       })
     },

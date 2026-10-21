@@ -79,8 +79,7 @@
           <a @click="handleView(record)">View</a>
           <!-- 按钮权限：v-action 配置见 src/permission.js -> ROLE_CONFIG[role].actions -->
           <a-divider v-action:host:disable type="vertical" />
-          <!-- 停用/启用互切：appr_state=0 已停用显示 Enable（契约 §3.2：停用/启用共用 PUT /host/disable） -->
-          <a v-action:host:disable @click="handleDisable(record)">{{ record.appr_state === 0 ? 'Enable' : 'Disable' }}</a>
+          <a v-action:host:disable @click="handleDisable(record)">Disable</a>
           <!-- 已 Offline 的 Host 不允许再次下线，禁用 Go Offline -->
           <a-divider v-action:host:offline type="vertical" />
           <a
@@ -88,8 +87,6 @@
             :class="{ 'disabled-link': record.host_state === 4 }"
             @click="handleOffline(record)"
           >Go Offline</a>
-          <a-divider v-action:host:delete type="vertical" />
-          <a v-action:host:delete class="danger-link" @click="handleDelete(record)">Delete</a>
         </span>
       </s-table>
     </a-card>
@@ -99,8 +96,9 @@
 <script>
 import moment from 'moment'
 import { STable, Ellipsis } from '@/components'
-import { fetchEnabledList, deactivateHost, enableHost, forceOfflineHost, deleteEnabledHost } from '@/api/host'
+import { fetchEnabledList, deactivateHost, forceOfflineHost } from '@/api/host'
 import { stateDict } from '@/store/dict'
+import { nextTick } from 'vue'
 
 // 占用起始时间 → 距今时长（Xh YYm），口径参考 Home.vue formatDuration
 const formatDuration = since => {
@@ -161,7 +159,6 @@ const columns = [
     // width: '1%' 为最小宽度提示：操作列收缩到内容宽度并整体靠右，
     // 右缘到表格右侧的 16px 内边距与 ID 列左缘的 16px 间距对称；
     // 列内保持左对齐，富余宽度全部分给数据列
-    width: '1%',
     scopedSlots: { customRender: 'action' }
   }
 ]
@@ -249,7 +246,9 @@ export default {
     },
     handleReset () {
       this.queryParam = {}
-      this.$refs.table.refresh(true)
+      nextTick(() => {
+        this.$refs.table.refresh(true)
+      })
     },
     // 跳转到 Host 详情页（/available-host/detail）
     // 详情页路由唯一且必须携带 host_id，其余信息均由详情接口按 host_id 拉取
@@ -261,12 +260,7 @@ export default {
         }
       })
     },
-    // 停用/启用互切：appr_state=0 为已停用，此时执行启用，否则执行停用（契约 §3.2）
     handleDisable (record) {
-      if (record.appr_state === 0) {
-        this.handleEnable(record)
-        return
-      }
       const that = this
       this.$confirm({
         title: 'Disable Host',
@@ -279,22 +273,6 @@ export default {
             that.$refs.table.refresh()
           }).catch(e => {
             that.$message.error(getErrMsg(e, `Failed to disable Host ${record.host_no}`))
-          })
-        }
-      })
-    },
-    // 启用已停用的 Host（§3.2：停用/启用共用 PUT /host/disable，启用后回到可用主机池）
-    handleEnable (record) {
-      const that = this
-      this.$confirm({
-        title: 'Enable Host',
-        content: `Are you sure you want to enable Host ${record.host_no} (${record.host_ip})? The Host will be restored to the Available HOST pool.`,
-        onOk () {
-          enableHost({ host_id: record.host_id }).then(() => {
-            that.$message.success(`Host ${record.host_no} has been enabled`)
-            that.$refs.table.refresh()
-          }).catch(e => {
-            that.$message.error(getErrMsg(e, `Failed to enable Host ${record.host_no}`))
           })
         }
       })
@@ -319,23 +297,6 @@ export default {
             that.$refs.table.refresh()
           }).catch(e => {
             that.$message.error(getErrMsg(e, `Failed to send offline notification to Host ${record.host_no}`))
-          })
-        }
-      })
-    },
-    handleDelete (record) {
-      const that = this
-      this.$confirm({
-        title: 'Delete Host',
-        content: `Are you sure to delete Host ${record.host_no} (${record.host_ip})? This cannot be undone!`,
-        okType: 'danger',
-        onOk () {
-          // 删除主机（§3.2：DELETE /host/{host_id}，逻辑删除）
-          deleteEnabledHost(record.host_id).then(() => {
-            that.$message.success(`Host ${record.host_no} has been deleted`)
-            that.$refs.table.refresh()
-          }).catch(e => {
-            that.$message.error(getErrMsg(e, `Failed to delete Host ${record.host_no}`))
           })
         }
       })
@@ -380,7 +341,7 @@ export default {
 .host-actions {
   display: inline-flex;
   // 禁止折行：操作列按最小内容宽度收缩时，最小宽度即整行链接宽度，
-  // 保证 View~Delete 始终单行显示
+  // 保证 View~Go Offline 始终单行显示
   flex-wrap: nowrap;
   white-space: nowrap;
   align-items: center;
@@ -388,14 +349,6 @@ export default {
   // 收紧分隔线间距，与单元格 padding 协调，保持列间距视觉一致
   /deep/ .ant-divider-vertical {
     margin: 0 4px;
-  }
-}
-
-.danger-link {
-  color: #f5222d;
-
-  &:hover {
-    color: #ff7875;
   }
 }
 
