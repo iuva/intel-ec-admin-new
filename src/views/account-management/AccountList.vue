@@ -17,9 +17,9 @@
               <a-form-item label="Role">
                 <a-select v-model="queryParam.role" placeholder="Please select">
                   <a-select-option value="">All</a-select-option>
-                  <a-select-option value="Admin">Admin</a-select-option>
-                  <a-select-option value="Lab Tech">Lab Tech</a-select-option>
-                  <a-select-option value="Viewer">Viewer</a-select-option>
+                  <a-select-option value="admin">Admin</a-select-option>
+                  <a-select-option value="labtech">Lab Tech</a-select-option>
+                  <a-select-option value="viewer">Viewer</a-select-option>
                 </a-select>
               </a-form-item>
             </a-col>
@@ -43,14 +43,17 @@
         size="default"
         rowKey="id"
         :columns="columns"
-        :data="loadData"
+        :data="getAccountList"
+        :dataBefore="accountListReq"
+        :dataAfter="accountListRes"
+        :params="queryParam"
         showPagination="auto"
       >
         <span slot="role" slot-scope="text">
           <a-tag :color="text | roleColorFilter">{{ text }}</a-tag>
         </span>
 
-        <!-- 密码列：Admin 明文 / Lab Tech 掩码 / Viewer 整列隐藏 -->
+        <!-- 密码列：后端统一下发掩码（admin/labtech），viewer 请求时不下发该字段、整列隐藏 -->
         <span slot="password" slot-scope="text">
           <span class="password-text">{{ text }}</span>
         </span>
@@ -73,9 +76,9 @@
       >
         <a-form :form="dialogForm" v-bind="formItemLayout">
           <a-form-item label="Username">
-            <!-- 编辑模式用户名不可修改 -->
+            <!-- 编辑模式用户名不可修改；唯一性由后端校验（422 账号已存在） -->
             <a-input
-              v-decorator="['username', { rules: [{ required: true, message: 'Please enter username' }, { validator: handleValidateUsername }] }]"
+              v-decorator="['username', { rules: [{ required: true, message: 'Please enter username' }] }]"
               placeholder="Please enter username"
               :disabled="isEdit"
             />
@@ -83,21 +86,21 @@
           <a-form-item label="Role">
             <!-- 编辑模式角色不可修改，仅新增时可选 -->
             <a-select
-              v-decorator="['role', { rules: [{ required: true, message: 'Please select role' }], initialValue: 'Viewer' }]"
+              v-decorator="['role', { rules: [{ required: true, message: 'Please select role' }], initialValue: 'viewer' }]"
               :disabled="isEdit"
             >
-              <a-select-option value="Admin">Admin</a-select-option>
-              <a-select-option value="Lab Tech">Lab Tech</a-select-option>
-              <a-select-option value="Viewer">Viewer</a-select-option>
+              <a-select-option value="admin">Admin</a-select-option>
+              <a-select-option value="labtech">Lab Tech</a-select-option>
+              <a-select-option value="viewer">Viewer</a-select-option>
             </a-select>
           </a-form-item>
           <!-- 密码：新增/编辑均必填（View 打开编辑弹窗的目的就是修改密码，账号名不可改）；
                Lab Tech 掩码展示不可编辑；Viewer 不可见。
                长引导/约束文案放 extra 常驻展示在输入框下方，placeholder 只留简短内容提示 -->
           <template v-if="showPasswordFields">
-            <a-form-item label="Password" extra="At least 6 characters">
+            <a-form-item label="Password" extra="At least 8 characters, including uppercase, lowercase and number">
               <a-input-password
-                v-decorator="['password', { rules: [{ required: true, message: 'Please enter password' }, { min: 6, message: 'Password must be at least 6 characters' }] }]"
+                v-decorator="['password', { rules: [{ required: true, message: 'Please enter password' }, { min: 8, message: 'Password must be at least 8 characters' }, { pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/, message: 'Password must contain uppercase and lowercase letters and numbers' }] }]"
                 placeholder="Please enter password"
               />
             </a-form-item>
@@ -121,10 +124,7 @@
 <script>
 import { STable, Ellipsis } from '@/components'
 import { roleMixin } from '@/utils/roles'
-import { mockAccounts, addAccount, updateAccount, deleteAccount, ROLES } from '@/mock/services/account'
-
-// 密码掩码：Lab Tech 可见掩码，Viewer 整列隐藏，Admin 明文
-const PASSWORD_MASK = '******'
+import { getAccountList, addAccount, updateAccount, deleteAccount } from '@/api/account'
 
 export default {
   name: 'AccountManagementList',
@@ -147,30 +147,9 @@ export default {
         labelCol: { lg: { span: 7 }, sm: { span: 7 } },
         wrapperCol: { lg: { span: 13 }, sm: { span: 15 } }
       },
-      // 查询参数
+      // 查询参数（变量名以接口文档 §6 为准）
       queryParam: {},
-      // 加载数据方法 必须为 Promise 对象
-      loadData: parameter => {
-        const requestParameters = Object.assign({}, parameter, this.queryParam)
-        // TODO: 替换为后端接口，如 getAccountList(requestParameters)
-        const filtered = mockAccounts.filter(item => {
-          return (!requestParameters.username || item.username.toLowerCase().includes(requestParameters.username.toLowerCase())) &&
-            (!requestParameters.role || item.role === requestParameters.role)
-        })
-        // 密码展示按当前登录角色：Admin 明文 / Lab Tech 掩码 / Viewer 不可见（列已隐藏）
-        const withPassword = filtered.map(item => {
-          return { ...item, password: this.isAdmin ? item.password : PASSWORD_MASK }
-        })
-        return new Promise(resolve => {
-          resolve({
-            pageSize: parameter.pageSize || 10,
-            pageNo: parameter.pageNo || 1,
-            totalCount: withPassword.length,
-            totalPage: Math.ceil(withPassword.length / (parameter.pageSize || 10)),
-            data: withPassword
-          })
-        })
-      }
+      getAccountList
     }
   },
   computed: {
@@ -186,26 +165,22 @@ export default {
       }
       return !this.isViewer
     },
-    // 密码列按角色显隐：Viewer 不渲染该列
+    // 密码列按角色显隐：viewer 请求时后端不下发 password 字段，列亦不渲染
     columns () {
       const baseColumns = [
         { title: 'ID', dataIndex: 'id' },
-        { title: 'Username', dataIndex: 'username' },
+        { title: 'Username', dataIndex: 'user_account' },
         { title: 'Role', dataIndex: 'role', scopedSlots: { customRender: 'role' } }
       ]
       if (!this.isViewer) {
         baseColumns.push({ title: 'Password', dataIndex: 'password', scopedSlots: { customRender: 'password' } })
       }
       baseColumns.push(
-        { title: 'Create Time', dataIndex: 'createTime' },
-        { title: 'Last Login', dataIndex: 'lastLoginTime' },
+        { title: 'Create Time', dataIndex: 'created_time' },
+        { title: 'Last Login', dataIndex: 'last_login_time' },
         {
           title: 'Action',
           dataIndex: 'action',
-          // width: '1%' 为最小宽度提示：操作列收缩到内容宽度并整体靠右，
-          // 右缘到表格右侧的 16px 内边距与 ID 列左缘的 16px 间距对称；
-          // 列内保持左对齐，富余宽度全部分给数据列
-          width: '1%',
           scopedSlots: { customRender: 'action' }
         }
       )
@@ -215,17 +190,40 @@ export default {
   filters: {
     roleColorFilter (role) {
       const colorMap = {
-        [ROLES.ADMIN]: 'geekblue',
-        [ROLES.LAB_TECH]: 'cyan',
-        [ROLES.VIEWER]: 'green'
+        admin: 'geekblue',
+        labtech: 'cyan',
+        viewer: 'green'
       }
       return colorMap[role] || 'default'
     }
   },
   methods: {
+    // 请求前参数处理：s-table 通用分页参数转换为契约分页参数，剔除空值搜索条件，
+    // 并把页面展示角色（Admin/Lab Tech/Viewer）转为契约取值（admin/labtech/viewer）
+    accountListReq (params) {
+      params.page = params.pageNo
+      params.page_size = params.pageSize
+      delete params.pageNo
+      delete params.pageSize
+      Object.keys(params).forEach(key => {
+        if (params[key] === '' || params[key] === undefined || params[key] === null) {
+          delete params[key]
+        }
+      })
+    },
+    // 响应映射：信封 {code, message, data} → s-table 结构（契约 data: {list, page, page_size, total}）
+    accountListRes (res) {
+      return {
+        pageNo: res.page,
+        totalCount: res.total,
+        data: res.list
+      }
+    },
     handleReset () {
       this.queryParam = {}
-      this.$refs.table.refresh(true)
+      this.$nextTick(() => {
+        this.$refs.table.refresh(true)
+      })
     },
     // 打开共用弹窗：新增模式
     handleAdd () {
@@ -235,40 +233,38 @@ export default {
         this.dialogForm.resetFields()
       })
     },
-    // 打开共用弹窗：查看/编辑模式（View）
+    // 打开共用弹窗：查看/编辑模式（View）；列表 password 恒为掩码，编辑仅回显账号与角色
     handleView (record) {
-      // 找到原始数据（表格数据里的密码可能是掩码）
-      const account = mockAccounts.find(item => item.id === record.id)
-      if (!account) return
-      this.editingAccount = { ...account }
+      this.editingAccount = { ...record }
       this.dialogVisible = true
       this.$nextTick(() => {
         this.dialogForm.resetFields()
         this.dialogForm.setFieldsValue({
-          username: account.username,
-          role: account.role
+          username: record.user_account,
+          role: record.role
         })
       })
     },
-    // 删除账号：仅 Admin 可见；不可删除当前登录账号；带二次确认弹窗
+    // 删除账号：仅 Admin 可见；不可删除当前登录账号（后端同时兜底：不能删自己/最后一个启用 admin）；带二次确认弹窗
     handleDelete (record) {
-      const currentUsername = this.$store.state.user.info.username
-      if (record.username === currentUsername) {
+      const currentUsername = this.$store.state.user.name
+      if (record.user_account === currentUsername) {
         this.$message.warning('Cannot delete the account you are currently logged in with')
         return
       }
-      const that = this
       this.$confirm({
         title: 'Delete Account',
-        content: `Are you sure to delete account ${record.username}? This action cannot be undone!`,
+        content: `Are you sure to delete account ${record.user_account}? This action cannot be undone!`,
         okText: 'Delete',
         okType: 'danger',
         cancelText: 'Cancel',
-        onOk () {
-          // TODO: 调用后端删除接口
-          deleteAccount(record.id)
-          that.$message.success(`Account ${record.username} deleted`)
-          that.$refs.table.refresh()
+        onOk: () => {
+          deleteAccount(record.id).then(() => {
+            this.$message.success(`Account ${record.user_account} deleted`)
+            this.$refs.table.refresh()
+          }).catch(error => {
+            this.$message.error(this.getErrorMessage(error, 'Delete failed'))
+          })
         }
       })
     },
@@ -278,15 +274,11 @@ export default {
       this.dialogForm.resetFields()
       this.editingAccount = null
     },
-    // 用户名唯一性校验（编辑模式排除自身）
-    handleValidateUsername (rule, value, callback) {
-      if (value && mockAccounts.some(item => item.id !== (this.editingAccount || {}).id && item.username.toLowerCase() === value.trim().toLowerCase())) {
-        callback(new Error('Username already exists'))
-      } else {
-        callback()
-      }
+    // 接口错误文案：优先取后端 message（如 422 账号已存在/密码强度/不能删最后一个启用 admin），否则回退默认提示
+    getErrorMessage (error, fallback) {
+      return (error.response && error.response.data && error.response.data.message) || fallback
     },
-    // 确认密码与密码一致（编辑模式密码可留空）
+    // 确认密码与密码一致（新增/编辑密码均为必填）
     handleConfirmPassword (rule, value, callback) {
       const password = this.dialogForm.getFieldValue('password')
       if (password && value !== password) {
@@ -296,33 +288,29 @@ export default {
       }
     },
     // 提交弹窗：新增 / 编辑
+    // 编辑仅改密码（user_account 不可变，角色仅回显）；契约：改密后该用户即时失效需重新登录
     handleDialogSubmit () {
-      const that = this
       this.dialogForm.validateFields((err, values) => {
         if (err) return
-        that.dialogSubmitting = true
-        // TODO: 替换为后端接口（新增/编辑账号）
-        setTimeout(() => {
-          if (that.isEdit) {
-            // 编辑：角色不可修改（仅回显原值），密码为必填项（View 弹窗的目的即修改密码）
-            updateAccount(that.editingAccount.id, {
-              role: that.editingAccount.role,
-              password: values.password
-            })
-            that.$message.success(`Account ${values.username} updated`)
-          } else {
-            addAccount({
-              username: values.username.trim(),
+        this.dialogSubmitting = true
+        const request = this.isEdit
+          ? updateAccount(this.editingAccount.id, { password: values.password })
+          : addAccount({
+              user_account: values.username.trim(),
               password: values.password,
+              password_confirm: values.confirm,
               role: values.role
             })
-            that.$message.success(`Account ${values.username.trim()} created`)
-          }
-          that.dialogSubmitting = false
-          that.dialogVisible = false
-          that.editingAccount = null
-          that.$refs.table.refresh()
-        }, 500)
+        request.then(() => {
+          this.$message.success(this.isEdit ? `Account ${values.username} updated` : `Account ${values.username.trim()} created`)
+          this.dialogVisible = false
+          this.editingAccount = null
+          this.$refs.table.refresh()
+        }).catch(error => {
+          this.$message.error(this.getErrorMessage(error, this.isEdit ? 'Update failed' : 'Create failed'))
+        }).finally(() => {
+          this.dialogSubmitting = false
+        })
       })
     }
   }
