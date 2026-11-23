@@ -21,7 +21,7 @@
                 :columns="columns"
                 :data-source="activeReleases"
                 :loading="releaseLoading"
-                :pagination="{ pageSize: 10, size: 'small' }"
+                :pagination="{ pageSize: 10, size: 'small', showTotal: renderTotal }"
                 :scroll="{ y: 450 }"
                 :row-class-name="record => (record.current ? 'is-current-row' : '')"
               >
@@ -64,7 +64,7 @@
                   :columns="failedColumns"
                   :data-source="activeResult.hosts || []"
                   :loading="resultLoading"
-                  :pagination="{ pageSize: 5, size: 'small' }"
+                  :pagination="{ pageSize: 5, size: 'small', showTotal: renderTotal }"
                 >
                   <template slot="state" slot-scope="text">
                     <a-tag :color="stateColor(text)">{{ text }}</a-tag>
@@ -164,6 +164,10 @@ export default {
     this.loadTabData()
   },
   methods: {
+    // 分页器左侧展示总条数
+    renderTotal (total) {
+      return `Total ${total} items`
+    },
     // 加载当前页签的版本列表与当前版本推送详情
     loadTabData () {
       this.loadReleases()

@@ -50,6 +50,9 @@ const user = {
       return new Promise((resolve, reject) => {
         login(userInfo).then(response => {
           const result = response.data
+          // 换账号重新登录时清空旧的动态路由（如 401 跳登录页等未走 Logout 的路径），
+          // 保证守卫按新角色重新生成左侧菜单
+          commit('SET_ROUTERS', [])
           storage.set(ACCESS_TOKEN, result.token)
           storage.set(REFRESH_TOKEN, result.refresh_token)
           // 持久化当前账号：刷新页面后按此还原角色与路由权限（后续接入 getInfo 接口可整体替换）

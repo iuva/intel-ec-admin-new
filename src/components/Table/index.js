@@ -128,7 +128,10 @@ export default {
     this.localPagination = ['auto', true].includes(this.showPagination) && Object.assign({}, this.localPagination, {
       current: localPageNum,
       pageSize: this.pageSize,
-      showSizeChanger: this.showSizeChanger
+      showSizeChanger: this.showSizeChanger,
+      pageSizeOptions: ['10', '20', '50'],
+      // 表格下方展示总条数
+      showTotal: total => `Total ${total} items`
     }) || false
     this.needTotalList = this.initTotalList(this.columns)
     this.loadData()
@@ -151,7 +154,10 @@ export default {
      * @param {Object} filters 过滤条件
      * @param {Object} sorter 排序条件
      */
-    loadData (pagination, filters = this.filters, sorter = this.sorter) {
+    loadData (pagination, filters = this.filters, sorter = this.sorter, isRetry = false) {
+      // 幂等保护：上一次请求未响应前，再次触发加载（Search/Reset/翻页）直接忽略；
+      // isRetry 仅用于空页自动翻页的内部重入调用
+      if (this.localLoading && !isRetry) return
       this.filters = filters
       this.sorter = sorter
 
@@ -185,23 +191,16 @@ export default {
             current: pageInfo.pageNo, // 返回结果中的当前分页数
             total: pageInfo.totalCount, // 返回结果中的总记录数
             showSizeChanger: this.showSizeChanger,
+            pageSizeOptions: ['10', '20', '50'],
+            showTotal: total => `Total ${total} items`,
             pageSize: (pagination && pagination.pageSize) ||
               this.localPagination.pageSize
           }) || false
           // 为防止删除数据后导致页面当前页面数据长度为 0 ,自动翻页到上一页
           if (pageInfo.data.length === 0 && this.showPagination && this.localPagination.current > 1) {
             this.localPagination.current--
-            this.loadData()
+            this.loadData(undefined, filters, sorter, true)
             return
-          }
-          // 这里用于判断接口是否有返回 r.totalCount 且 this.showPagination = true 且 pageNo 和 pageSize 存在 且 totalCount 小于等于 pageNo * pageSize 的大小
-          // 当情况满足时，表示数据不满足分页大小，关闭 table 分页功能
-          try {
-            if ((['auto', true].includes(this.showPagination) && r.totalCount <= (r.pageNo * this.localPagination.pageSize))) {
-              this.localPagination.hideOnSinglePage = true
-            }
-          } catch (e) {
-            this.localPagination = false
           }
           this.localDataSource = pageInfo.data // 返回结果中的数组数据
         }).catch(() => {

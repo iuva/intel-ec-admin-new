@@ -79,7 +79,7 @@
           <a @click="handleView(record)">View</a>
           <!-- 按钮权限：v-action 配置见 src/permission.js -> ROLE_CONFIG[role].actions -->
           <a-divider v-action:host:disable type="vertical" />
-          <a v-action:host:disable @click="handleDisable(record)">Disable</a>
+          <a v-action:host:disable @click="handleDisable(record)" :class="{ 'disabled-link': record.host_state === 1 || record.host_state === 3 }">Disable</a>
           <!-- 已 Offline 的 Host 不允许再次下线，禁用 Go Offline -->
           <a-divider v-action:host:offline type="vertical" />
           <a
@@ -261,6 +261,7 @@ export default {
       })
     },
     handleDisable (record) {
+      if (record.host_state === 1 || record.host_state === 3) return
       const that = this
       this.$confirm({
         title: 'Disable Host',

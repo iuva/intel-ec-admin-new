@@ -75,6 +75,7 @@
         title="Maintain Notification Email"
         :width="520"
         v-model="emailVisible"
+        :confirm-loading="emailSubmitting"
         @ok="handleEmailOk"
       >
         <a-alert
@@ -143,6 +144,8 @@ export default {
       emailVisible: false,
       // 当前邮箱查询中（弹窗打开时实时拉取）
       emailLoading: false,
+      // 保存邮箱请求中（OK 按钮 confirm-loading，防重复提交）
+      emailSubmitting: false,
       // 弹窗表单布局：与 Update Password 弹窗一致（labelCol 7 / wrapperCol 13）
       emailFormItemLayout: {
         labelCol: { lg: { span: 7 }, sm: { span: 7 } },
@@ -299,6 +302,8 @@ export default {
     handleEmailOk () {
       this.emailForm.validateFields((err, values) => {
         if (err) return
+        // 请求期间 confirm-loading 锁住 OK 按钮，防止重复提交
+        this.emailSubmitting = true
         // 保存通知邮箱（§4.2 维护邮箱-改：{email, email_confirm?}，不一致 422 EMAIL_CONFIRM_MISMATCH）
         maintainEmail({ email: values.email, email_confirm: values.confirmEmail }).then(() => {
           this.$message.success(`Notification email saved: ${values.email}`)
@@ -306,6 +311,8 @@ export default {
           this.emailVisible = false
         }).catch(e => {
           this.$message.error(getErrMsg(e, 'Failed to save notification email'))
+        }).finally(() => {
+          this.emailSubmitting = false
         })
       })
     },

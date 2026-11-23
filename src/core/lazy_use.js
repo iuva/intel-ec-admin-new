@@ -45,6 +45,7 @@ import {
   Descriptions,
   Space,
   Collapse,
+  Empty,
   message,
   notification
 } from 'ant-design-vue'
@@ -101,6 +102,7 @@ Vue.use(Statistic)
 Vue.use(Descriptions)
 Vue.use(Space)
 Vue.use(Collapse)
+Vue.use(Empty)
 
 Vue.prototype.$confirm = Modal.confirm
 Vue.prototype.$message = message
