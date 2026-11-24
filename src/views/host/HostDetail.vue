@@ -65,7 +65,7 @@
       <a-button v-action:host:vnc type="primary" style="margin-right: 4px;" @click="vncVisible = true">realvnc</a-button>
       <a-button-group>
         <!-- 停用/启用互切：appr_state=0 已停用显示 Enable host（契约 §3.2：停用/启用共用 PUT /host/disable） -->
-        <a-button v-action:host:disable :disabled="hostState === 1 || hostState === 3" @click="handleDisableHost">{{ apprState === 0 ? 'Enable host' : 'Disable host' }}</a-button>
+        <a-button v-action:host:disable :disabled="hostState === 1 || hostState === 3" @click="handleDisableHost">{{ 'Disable host' }}</a-button>
         <a-button v-action:host:offline :disabled="hostState === 4" @click="handleGoOffline">Go offline</a-button>
       </a-button-group>
       <a-button v-action:host:password style="margin-left: 8px;" @click="pwdVisible = true">Update Password</a-button>
@@ -720,7 +720,8 @@ export default {
         onOk () {
           deactivateHost({ host_id: that.hostId }).then(() => {
             that.$message.success(`Host ${that.hostInfo.hostname} has been disabled`)
-            that.fetchDetail()
+            // 停用后主机已移入 Pending HOST，返回 Available HOST 列表页
+            that.$router.push('/available-host/list')
           }).catch(e => {
             that.$message.error(getErrMsg(e, `Failed to disable Host ${that.hostInfo.hostname}`))
           })

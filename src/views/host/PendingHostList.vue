@@ -114,6 +114,9 @@ import { nextTick } from 'vue'
 // 业务错误提示：优先展示服务端 message（如 422 EMAIL_CONFIRM_MISMATCH）
 const getErrMsg = (e, fallback) => (e && e.response && e.response.data && e.response.data.message) || fallback
 
+// 可勾选行：diff_state = 1（版本变更）。批量审批只处理版本升级，内容变更行不可选
+const isSelectable = record => Number(record.diff_state) === 1
+
 export default {
   name: 'PendingHostList',
   components: {
@@ -135,9 +138,14 @@ export default {
       selectedRows: [],
       rowSelection: {
         selectedRowKeys: [],
+        // 仅 diff_state = 1 的行复选框可用，其余行置灰不可勾选
+        getCheckboxProps: record => ({
+          props: { disabled: !isSelectable(record) }
+        }),
         onChange: (selectedRowKeys, selectedRows) => {
-          this.selectedRowKeys = selectedRowKeys
-          this.selectedRows = selectedRows
+          // 防御：Shift 范围连选可能绕过禁用态，再次过滤，保证批量审批只含版本变更行
+          this.selectedRows = selectedRows.filter(isSelectable)
+          this.selectedRowKeys = this.selectedRows.map(row => row.host_id)
         }
       },
       // 维护通知邮箱弹窗
