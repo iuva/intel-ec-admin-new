@@ -82,7 +82,7 @@
         </a-tab-pane>
       </a-tabs>
 
-      <!-- 新增版本弹窗：仅选择安装包，版本号与 MD5 由服务端解析 -->
+      <!-- 新增版本弹窗：选择安装包并填写版本号，上传时附带 conf_ver / conf_name -->
       <a-modal
         title="New Version"
         :visible="addModal.visible"
@@ -96,6 +96,10 @@
             <a-button><a-icon type="upload" /> Select File</a-button>
           </a-upload>
           <span v-if="addModal.fileName" class="add-file" :title="addModal.fileName">{{ addModal.fileName }}</span>
+        </div>
+        <div class="add-field">
+          <span class="add-label"><span class="required-star">*</span>Version:</span>
+          <a-input v-model="addModal.confVer" class="add-input" placeholder="e.g. 1.0.0" allow-clear />
         </div>
       </a-modal>
     </a-card>
@@ -143,8 +147,8 @@ export default {
         { label: 'Upgraded', type: 'green', calc: result => result.upgraded },
         { label: 'Failed', type: 'red', calc: result => result.failed }
       ],
-      // 新增版本弹窗：仅选文件，上传后由服务端解析版本号与 MD5
-      addModal: { visible: false, file: null, fileName: '', uploading: false }
+      // 新增版本弹窗：安装包 + 手填版本号（conf_ver）
+      addModal: { visible: false, file: null, fileName: '', confVer: '', uploading: false }
     }
   },
   computed: {
@@ -231,7 +235,7 @@ export default {
     },
     // 新增版本：打开弹窗并重置表单
     openAddModal () {
-      this.addModal = { visible: true, file: null, fileName: '', uploading: false }
+      this.addModal = { visible: true, file: null, fileName: '', confVer: '', uploading: false }
     },
     // 新增版本：选择安装包（拦截自动上传，仅记录文件，提交时统一上传）
     handleAddFile (file) {
@@ -239,22 +243,29 @@ export default {
       this.addModal.fileName = file.name
       return false
     },
-    // 新增版本：提交（multipart 上传，版本号与 MD5 由服务端解析）
+    // 新增版本：提交（multipart 上传；conf_ver 手填，conf_name 按 app_key-conf_ver 拼接）
     async handleAddSubmit () {
-      const { file } = this.addModal
+      const { file, confVer } = this.addModal
       if (!file) {
         this.$message.warning('Please select Installation Package')
+        return
+      }
+      const confVerVal = (confVer || '').trim()
+      if (!/^\d+\.\d+\.\d+$/.test(confVerVal)) {
+        this.$message.warning('Version must be in the format of digits.digits.digits, e.g. 1.0.0')
         return
       }
       const appKey = this.activeTab
       const formData = new FormData()
       formData.append('file', file)
       formData.append('app_key', appKey)
+      formData.append('conf_ver', confVerVal)
+      formData.append('conf_name', `${appKey}-${confVerVal}`)
       this.addModal.uploading = true
       try {
         await upload(formData)
         this.$message.success(`${appKey} ${file.name} uploaded`)
-        this.addModal = { visible: false, file: null, fileName: '', uploading: false }
+        this.addModal = { visible: false, file: null, fileName: '', confVer: '', uploading: false }
         this.loadReleases()
       } catch (e) {
         this.$message.error(getErrMsg(e, 'Failed to upload installation package'))
@@ -442,6 +453,11 @@ export default {
     margin-right: 4px;
     color: #f5222d;
     font-family: SimSun, sans-serif;
+  }
+
+  .add-input {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .add-file {
